@@ -21,22 +21,34 @@ A local kanban board for product work that keeps all of its state in your git re
 
 ## Install
 
-GitBoard Canvas is not on npm yet. Build it from source:
+Install the `gitboard` command once:
+
+```sh
+npm install -g gitboard-canvas
+```
+
+Or run it without installing, from inside your repository:
+
+```sh
+npx gitboard-canvas init
+npx gitboard-canvas
+```
+
+Or add it to a project, so everyone on the team gets the same version, with a script such as `"board": "gitboard"` in `package.json`:
+
+```sh
+npm install -D gitboard-canvas
+```
+
+With `npx`, put `--` before a flag that has no command in front of it, or npm reads the flag itself: `npx gitboard-canvas -- --version`.
+
+To try it on sample data first, clone the repository, build a demo repository and open its board:
 
 ```sh
 git clone https://github.com/JoshOsullivan-au/GitBoardCanvas.git
-cd GitBoardCanvas
-npm install        # also builds dist/
-npm link           # puts the `gitboard` command on your PATH
-```
-
-Without `npm link`, run `node /path/to/GitBoardCanvas/dist/cli.js` wherever this README says `gitboard`.
-
-To try it on sample data first, build a demo repository and open its board:
-
-```sh
+cd GitBoardCanvas && npm install
 node scripts/demo-repo.mjs ../gitboard-demo
-cd ../gitboard-demo && gitboard
+cd ../gitboard-demo && npx gitboard-canvas
 ```
 
 ## Quick start

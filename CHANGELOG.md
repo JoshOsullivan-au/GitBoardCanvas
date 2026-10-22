@@ -2,7 +2,7 @@
 
 Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
-## 0.1.0 (unreleased)
+## 0.1.0 (22/10/2026)
 
 First version.
 
