@@ -14,5 +14,5 @@
 
 ## Phase 03
 
-- [ ] Package published
-- [ ] Tag 0.1.0 created
+- [x] Package published. **Completed** 22/10/2026: `gitboard-canvas@0.1.0` on npm, public, 32 files, 68.0 kB.
+- [x] Tag 0.1.0 created. **Completed** 22/10/2026: `v0.1.0` on c16c631, the published source.
