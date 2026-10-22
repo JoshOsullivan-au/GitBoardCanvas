@@ -124,7 +124,7 @@ describe("board loader", () => {
 				{ folder: "2.doing", name: "Doing" },
 				{ folder: "3.shipped", name: "Shipped" },
 			],
-			groups: [{ name: "Payments", match: "^pay-" }],
+			groups: [{ name: "Payments", match: "^pay-", icon: "CreditCard" }],
 			defaultGroup: "Other",
 		});
 		const board = loadBoard(root, cfg);
@@ -136,6 +136,7 @@ describe("board loader", () => {
 			"old-thing": "Other",
 		});
 		expect(board.groups).toEqual(["Payments", "Other", "Ops"]);
+		expect(board.groupIcons).toEqual({ Payments: "CreditCard" });
 		expect(board.cards.map((c) => c.id)).toEqual(["1:misc-thing", "1:pay-links", "2:search-box", "3:old-thing"]);
 	});
 

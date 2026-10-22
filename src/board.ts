@@ -264,6 +264,7 @@ export function loadBoard(root: string, config: GitBoardConfig, opts: { pipeline
 		cards,
 		stages,
 		groups: groupsOf(cards, config),
+		groupIcons: Object.fromEntries(config.groups.filter((g) => g.icon).map((g) => [g.name, g.icon as string])),
 		roadmapDir,
 		mainBranch: config.mainBranch,
 		readAt: Date.now(),

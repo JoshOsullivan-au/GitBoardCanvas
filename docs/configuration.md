@@ -12,7 +12,7 @@ A bad config fails once with the whole list of problems, for example `gitboard.c
 | `mainBranch` | `"main"` | The branch moves land on. |
 | `port` | `4610` | Board port, 1 to 65535. |
 | `stages` | five stages | Stages in lifecycle order, two to nine. |
-| `groups` | `[]` | Rules that put a feature in a group by slug. |
+| `groups` | `[]` | Rules that put a feature in a group by slug, each with an optional icon. |
 | `defaultGroup` | `"General"` | Group for a slug no rule matches. |
 | `codeRoots` | `"auto"` | Top-level folders whose paths in feature docs tie code to a feature. |
 | `rewriteSkip` | build folders | Path prefixes a move never rewrites. |
@@ -60,11 +60,13 @@ Hook keys and `gitboard move` accept the stage id, the folder or the name.
 
 A group is a heading cards sit under inside a column. `match` is a JavaScript regular expression, tested against the slug without regard to case. The first match wins. A `group:` line in a feature's frontmatter overrides the rules.
 
+`icon` is optional and names the icon shown on the group heading and its cards. Choose from `AddressBook`, `Bell`, `BookOpen`, `Briefcase`, `BuildingOffice`, `ChartLineUp`, `ChatCircle`, `Cloud`, `Code`, `CreditCard`, `Cube`, `Database`, `DeviceMobile`, `Gear`, `Globe`, `Lightning`, `Package`, `PaintBrush`, `Palette`, `Robot`, `Rocket`, `Sparkle`, `Stack`, `Users`, `Wrench`. A missing or unknown name shows `Stack`. To give the default group an icon, add a rule with the same name.
+
 ```json
 {
   "groups": [
-    { "name": "Payments", "match": "^pay-|checkout" },
-    { "name": "Platform", "match": "^infra-|^ci-" }
+    { "name": "Payments", "match": "^pay-|checkout", "icon": "CreditCard" },
+    { "name": "Platform", "match": "^infra-|^ci-", "icon": "Cube" }
   ],
   "defaultGroup": "Product"
 }

@@ -2,7 +2,10 @@
 
 A local kanban board for product work that keeps all of its state in your git repository. Each feature is a markdown file and a folder. The stage folder it sits in is its status, and moving a card is one git commit.
 
-![Gitboard Canvas board with five stage columns](docs/board.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/board-dark.png">
+  <img alt="Gitboard Canvas: five stage columns, features grouped by area, and the dependency lines of a hovered feature" src="docs/board.png">
+</picture>
 
 ## Why
 
@@ -28,6 +31,13 @@ npm link           # puts the `gitboard` command on your PATH
 ```
 
 Without `npm link`, run `node /path/to/GitBoardCanvas/dist/cli.js` wherever this README says `gitboard`.
+
+To try it on sample data first, build a demo repository and open its board:
+
+```sh
+node scripts/demo-repo.mjs ../gitboard-demo
+cd ../gitboard-demo && gitboard
+```
 
 ## Quick start
 

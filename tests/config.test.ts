@@ -59,6 +59,11 @@ describe("loadConfig", () => {
 		expect(() => loadConfig(root)).toThrow(/github must be true or false; port must be a number/);
 	});
 
+	it("rejects a group icon that is not a string", () => {
+		put({ groups: [{ name: "P", match: "^p", icon: 3 }] });
+		expect(() => loadConfig(root)).toThrow(/groups\[0\]/);
+	});
+
 	it("accepts a full valid file", () => {
 		put({
 			roadmapDir: "roadmap",
@@ -66,7 +71,7 @@ describe("loadConfig", () => {
 			port: 4700,
 			codeRoots: ["src/"],
 			rewriteSkip: ["dist/"],
-			groups: [{ name: "P", match: "^p" }],
+			groups: [{ name: "P", match: "^p", icon: "Cube" }],
 			lint: { builtin: false, command: null, phaseHeadings: ["Why"], readmeSections: [] },
 			hooks: { onEnter: { "5": ["echo {slug}"] } },
 			github: false,

@@ -64,6 +64,8 @@ export type Board = {
 	cards: Card[];
 	stages: Stage[];
 	groups: string[];
+	/** Icon name per configured group; groups without one use the default icon. */
+	groupIcons: Record<string, string>;
 	roadmapDir: string;
 	mainBranch: string;
 	readAt: number;

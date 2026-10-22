@@ -153,7 +153,7 @@ Gitboard Canvas never pushes, never force-updates a branch, never stashes, never
 | `mainBranch` | `"main"` | Branch moves land on. |
 | `port` | `4610` | Board port. |
 | `stages` | the five above | `[{ "folder": "1.ideas", "name": "Ideas" }, ...]` |
-| `groups` | `[]` | `[{ "name": "Payments", "match": "^pay-\|checkout" }]`, first match on the slug wins. |
+| `groups` | `[]` | `[{ "name": "Payments", "match": "^pay-\|checkout", "icon": "CreditCard" }]`, first match on the slug wins; `icon` is optional. |
 | `defaultGroup` | `"General"` | Group for a slug no rule matches. |
 | `codeRoots` | `"auto"` | Top-level folders whose paths in feature docs tie code to a feature. |
 | `rewriteSkip` | build folders | Path prefixes a move never rewrites. |

@@ -6,7 +6,8 @@ import type { Stage } from "./types.js";
 
 export const CONFIG_FILE = "gitboard.config.json";
 
-export type GroupRule = { name: string; match: string };
+/** `icon` names a Phosphor icon the board ships (see docs/configuration.md); unknown names fall back to Stack. */
+export type GroupRule = { name: string; match: string; icon?: string };
 
 export type GitBoardConfig = {
 	/** Repo-relative folder that holds the stage folders. */
@@ -116,8 +117,8 @@ function checkShape(raw: unknown): string[] {
 		if (!Array.isArray(raw.groups)) e.push("groups must be an array");
 		else
 			raw.groups.forEach((g, i) => {
-				if (!isObject(g) || typeof g.name !== "string" || typeof g.match !== "string")
-					e.push(`groups[${i}] must be { "name": string, "match": string }`);
+				if (!isObject(g) || typeof g.name !== "string" || typeof g.match !== "string" || (g.icon !== undefined && typeof g.icon !== "string"))
+					e.push(`groups[${i}] must be { "name": string, "match": string, "icon"?: string }`);
 			});
 	}
 	if (raw.lint !== undefined) {

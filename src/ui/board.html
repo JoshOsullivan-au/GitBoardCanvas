@@ -474,6 +474,8 @@ let GROUPS = [];
 let ROADMAP_DIR = "";
 let MAIN_BRANCH = "main";
 const GROUP_ICON = "Stack";
+let GROUP_ICONS = {};
+const groupIcon = (g) => (ICONS[GROUP_ICONS[g]] ? GROUP_ICONS[g] : GROUP_ICON);
 const lastStage = () => STAGES[STAGES.length - 1]?.id;
 const isDone = (c) => c.stage === lastStage();
 const POLL_MS = 3000;
@@ -541,6 +543,7 @@ async function refresh() {
   ROADMAP_DIR = data.roadmapDir;
   MAIN_BRANCH = data.mainBranch;
   GROUPS = [...new Set([...data.groups, ...cards.map((c) => c.group)])];
+  GROUP_ICONS = data.groupIcons || {};
   cards.forEach((c, i) => { c.idx = i; });
   byId = new Map(cards.map((c) => [c.id, c]));
   buildFilterOptions();
@@ -633,7 +636,7 @@ const FILTER_OPTIONS = {
 };
 const GROUP_NAME = { git: "Git", state: "State", group: "Group", stage: "Stage", progress: "Progress" };
 function buildFilterOptions() {
-  FILTER_OPTIONS.group = GROUPS.map((s) => [s, s, GROUP_ICON, (c) => c.group === s]);
+  FILTER_OPTIONS.group = GROUPS.map((s) => [s, s, groupIcon(s), (c) => c.group === s]);
   FILTER_OPTIONS.stage = STAGES.map((s) => [String(s.id), `${s.id} ${s.name}`, null, (c) => c.stage === s.id]);
 }
 function inGroup(c, g) {
@@ -692,7 +695,7 @@ function cardHtml(c) {
   const sub = [...new Set([st.word, ...extra].filter(Boolean))].join(" · ");
   const label = [c.title, stageName(c.stage), c.group, sub, gitWord].filter(Boolean).join(", ");
   return `<div class="card lg lg-regular ${st.cls}${on ? " on" : ""}${dim ? " off" : ""}" data-card="${esc(c.id)}" role="button" tabindex="0" aria-roledescription="Draggable card" aria-label="${esc(label)}."${state.grab?.id === c.id ? " data-grabbed" : ""}${state.drag?.active && state.drag.id === c.id ? " data-dragging" : ""}>
-    <span class="chips">${c.createdAt ? `<span class="av-b dt" title="Created ${ddmmyyyy(c.createdAt)}">${icon("CalendarBlank")}${ddmmyyyy(c.createdAt)}</span>` : ""}${gitBadge(c)}</span><span class="tile">${icon(GROUP_ICON)}</span><span class="tx"><b>${esc(c.title)}</b><span>${esc(sub)}</span></span><span class="st">${st.mark}</span></div>`;
+    <span class="chips">${c.createdAt ? `<span class="av-b dt" title="Created ${ddmmyyyy(c.createdAt)}">${icon("CalendarBlank")}${ddmmyyyy(c.createdAt)}</span>` : ""}${gitBadge(c)}</span><span class="tile">${icon(groupIcon(c.group))}</span><span class="tx"><b>${esc(c.title)}</b><span>${esc(sub)}</span></span><span class="st">${st.mark}</span></div>`;
 }
 function groupHtml(stage, group) {
   const list = cellCards(group, stage.id);
@@ -702,7 +705,7 @@ function groupHtml(stage, group) {
   const gated = list.filter((c) => !isBlocked(c) && c.gated).length;
   const dim = false;
   return `<div class="grp${list.length ? "" : " empty"}${dim ? " off" : ""}"${open ? "" : " data-collapsed"} data-key="${esc(key)}">
-    <button type="button" class="gh" data-group="${esc(key)}" aria-expanded="${open}"><span class="car">${icon("CaretRight")}</span><span class="gi">${icon(GROUP_ICON)}</span><span class="gn">${esc(group)}</span>${blocked ? `<span class="gm blk" title="${plural(blocked, "blocked feature")}">${icon("Lock")}${blocked}</span>` : ""}${gated ? `<span class="gm" title="${plural(gated, "gated feature")}">${icon("HourglassMedium")}${gated}</span>` : ""}<span class="pill">${list.length}</span></button>
+    <button type="button" class="gh" data-group="${esc(key)}" aria-expanded="${open}"><span class="car">${icon("CaretRight")}</span><span class="gi">${icon(groupIcon(group))}</span><span class="gn">${esc(group)}</span>${blocked ? `<span class="gm blk" title="${plural(blocked, "blocked feature")}">${icon("Lock")}${blocked}</span>` : ""}${gated ? `<span class="gm" title="${plural(gated, "gated feature")}">${icon("HourglassMedium")}${gated}</span>` : ""}<span class="pill">${list.length}</span></button>
     <div class="gb"><div class="inner"><div class="cell" data-cellgroup="${esc(group)}" data-stage="${stage.id}" aria-label="${esc(group)}, ${esc(stage.name)}"${state.drag?.over === `${group}|${stage.id}` ? " data-over" : ""}>${list.map(cardHtml).join("")}</div></div></div>
   </div>`;
 }
@@ -1131,7 +1134,7 @@ board.addEventListener("keydown", (e) => {
 function featureRows(ids) {
   return `<ul class="rel">${ids.map((id) => byId.get(id)).filter(Boolean).sort((a, b) => a.stage - b.stage || a.title.localeCompare(b.title)).map((n) => {
     const st = cardState(n);
-    return `<li><button type="button" class="relr ${st.cls}" data-goto="${esc(n.id)}"><span class="tile">${icon(GROUP_ICON)}</span><span class="tx"><b>${esc(n.title)}</b><span>${n.stage} ${esc(stageName(n.stage))} · ${esc(st.word)}</span></span></button></li>`;
+    return `<li><button type="button" class="relr ${st.cls}" data-goto="${esc(n.id)}"><span class="tile">${icon(groupIcon(n.group))}</span><span class="tx"><b>${esc(n.title)}</b><span>${n.stage} ${esc(stageName(n.stage))} · ${esc(st.word)}</span></span></button></li>`;
   }).join("")}</ul>`;
 }
 const VIA = { roadmap: "roadmap files", branch: "branch name", code: "code it names" };
