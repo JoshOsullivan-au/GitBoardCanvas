@@ -33,7 +33,7 @@ Get GitBoard Canvas 0.1.0 out: documents and templates in place, a clean-repo ru
 | Phase | State |
 | --- | --- |
 | 01 | Done |
-| 02 | In progress |
+| 02 | Done |
 | 03 | Planned |
 
 ## Open decisions

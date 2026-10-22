@@ -70,7 +70,7 @@ Run these in the git repository you want to track.
    gitboard
    ```
 
-5. Drag the card to Planning, or move it from the terminal:
+5. Drag the card to Planning, or, instead of dragging, move it from the terminal:
 
    ```sh
    gitboard move checkout-redesign planning

@@ -7,7 +7,7 @@ Builds on `v0-1-core`. Plan and order: [`README.md`](./v0-1-release/README.md).
 ## Build list
 
 - [x] Phase 01: docs and templates. **Completed** 22/10/2026: `README.md`, `docs/`, `templates/`.
-- [ ] Phase 02: end-to-end check on a clean repo and review fixes
+- [x] Phase 02: end-to-end check on a clean repo and review fixes. **Completed** 22/10/2026: quick start passes on Node 22.12 and 26.8.2; two README and CLI fixes.
 - [ ] Phase 03: publish to npm and tag 0.1.0
 
 ## Decisions

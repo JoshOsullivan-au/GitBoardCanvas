@@ -8,9 +8,9 @@
 
 ## Phase 02
 
-- [ ] Quick start run on a clean repo
-- [ ] Failures fixed and the run repeated
-- [ ] Second person repeats the quick start
+- [x] Quick start run on a clean repo. **Completed** 22/10/2026: Node 22.12.0 and 26.8.2, packed tarball, every step exit 0.
+- [x] Failures fixed and the run repeated. **Completed** 22/10/2026: README step 5 wording, Ctrl+C hint in `serve`; rerun on 22.12 passes.
+- [x] Second person repeats the quick start. **Completed** 22/10/2026: separate agent from the README alone, all steps pass.
 
 ## Phase 03
 

@@ -89,7 +89,7 @@ async function main(argv: string[]): Promise<number> {
 			return 1;
 		}
 		const server = await listen({ root, config, port });
-		process.stderr.write(`gitboard: ${server.url} (${path.join(root, config.roadmapDir)})\n`);
+		process.stderr.write(`gitboard: ${server.url} (${path.join(root, config.roadmapDir)}). Press Ctrl+C to stop.\n`);
 		if (args.includes("--open")) openBrowser(server.url);
 		return new Promise<number>(() => {});
 	}
