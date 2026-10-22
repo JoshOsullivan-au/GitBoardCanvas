@@ -2,6 +2,13 @@
 
 Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
+## 0.1.1 (22/10/2026)
+
+### Fixed
+
+- Moving the last feature out of a stage no longer removes the stage folder from git. The move commit adds a `.gitkeep`, as `gitboard init` does, so `gitboard lint` stays clean in the checkout and in fresh clones.
+- The README's `npx` note: flags pass through as they are (`npx gitboard-canvas --version`); the `--` it suggested started the board instead.
+
 ## 0.1.0 (22/10/2026)
 
 First version.

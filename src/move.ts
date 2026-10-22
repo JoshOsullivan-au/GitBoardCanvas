@@ -236,6 +236,12 @@ function attemptMove(root: string, config: GitBoardConfig, input: MoveInput, sta
 			fs.mkdirSync(path.dirname(path.join(wt, m.to)), { recursive: true });
 			git(wt, ["mv", m.from, m.to]);
 		}
+		// git does not track empty folders: when the feature was the last thing in its stage, keep the stage with a .gitkeep, as init does.
+		const fromDir = `${config.roadmapDir}/${fromFolder}`;
+		if (!git(wt, ["ls-files", "-z", "--", fromDir]).length) {
+			fs.mkdirSync(path.join(wt, fromDir), { recursive: true });
+			fs.writeFileSync(path.join(wt, fromDir, ".gitkeep"), "");
+		}
 
 		// Links are resolved against the tree before the rename, then written into the moved places.
 		const before = git(wt, ["ls-files", "-z"])

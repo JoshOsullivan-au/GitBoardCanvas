@@ -1,6 +1,6 @@
 {
   "name": "gitboard-canvas",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "GitBoard Canvas: a local kanban for a folder-based product lifecycle. Each feature is a folder; moving a card is a git commit.",
   "license": "MIT",
   "author": "Josh O'Sullivan",

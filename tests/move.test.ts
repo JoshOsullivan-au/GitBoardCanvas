@@ -248,6 +248,23 @@ describe("moveFeature", () => {
 		expect(fs.existsSync(path.join(root, `${R}/4.in-progress/ad-board/phases/01-x.md`))).toBe(true);
 	});
 
+	it("keeps a stage folder in git with a .gitkeep when its last feature moves out", () => {
+		moveFeature(root, config, { slug: "ad-board", from: 3, to: 4 });
+		expect(sh(root, "ls-files", `${R}/3.open`).trim()).toBe(`${R}/3.open/daily-reporting.md`);
+		moveFeature(root, config, { slug: "daily-reporting", from: 3, to: 4 });
+		expect(sh(root, "ls-files", `${R}/3.open`).trim()).toBe(`${R}/3.open/.gitkeep`);
+		expect(fs.existsSync(path.join(root, `${R}/3.open`))).toBe(true);
+		expect(runLint(root, config).problems).toEqual([]);
+		// A fresh clone has the folder too, not only the checkout that ran the move.
+		const clone = fs.mkdtempSync(path.join(os.tmpdir(), "gitboard-clone-"));
+		try {
+			sh(clone, "clone", "-q", root, ".");
+			expect(fs.existsSync(path.join(clone, `${R}/3.open/.gitkeep`))).toBe(true);
+		} finally {
+			fs.rmSync(clone, { recursive: true, force: true });
+		}
+	});
+
 	it("refuses when the target holds either the folder or the list", () => {
 		write(root, `${R}/3.open/solo/README.md`, "# Solo\n");
 		write(root, `${R}/4.in-progress/solo.md`, "# Solo list\n");
