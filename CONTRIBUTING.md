@@ -7,8 +7,8 @@ Thanks for helping. This page covers setup, tests, commit style and sign-off.
 You need Node 22.12 or later and git 2.38 or later.
 
 ```sh
-git clone https://github.com/<owner>/gitboard-canvas.git
-cd gitboard-canvas
+git clone https://github.com/JoshOsullivan-au/GitBoardCanvas.git
+cd GitBoardCanvas
 npm install
 npm run build
 ```

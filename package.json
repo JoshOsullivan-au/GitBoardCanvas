@@ -6,12 +6,12 @@
   "author": "Josh O'Sullivan",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JoshOsullivan-au/gitboard-canvas.git"
+    "url": "git+https://github.com/JoshOsullivan-au/GitBoardCanvas.git"
   },
   "bugs": {
-    "url": "https://github.com/JoshOsullivan-au/gitboard-canvas/issues"
+    "url": "https://github.com/JoshOsullivan-au/GitBoardCanvas/issues"
   },
-  "homepage": "https://github.com/JoshOsullivan-au/gitboard-canvas#readme",
+  "homepage": "https://github.com/JoshOsullivan-au/GitBoardCanvas#readme",
   "type": "module",
   "bin": {
     "gitboard-canvas": "dist/cli.js",
