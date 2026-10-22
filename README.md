@@ -85,4 +85,4 @@ The board listens on `127.0.0.1` and `::1`, checks the Host and Origin headers, 
 
 MIT. See [LICENSE](LICENSE).
 
-Gitboard Canvas was built with help from Claude (Anthropic). Every change is reviewed by a maintainer.
+Gitboard Canvas, Josh O'Sullivan.
