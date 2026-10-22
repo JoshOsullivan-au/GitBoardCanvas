@@ -1,6 +1,6 @@
 # v0.1 release
 
-Get Gitboard Canvas 0.1.0 out: documents and templates in place, a clean-repo run that works, and a tagged npm package.
+Get GitBoard Canvas 0.1.0 out: documents and templates in place, a clean-repo run that works, and a tagged npm package.
 
 ## Order
 

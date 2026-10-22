@@ -1,4 +1,4 @@
-# Contributing to Gitboard Canvas
+# Contributing to GitBoard Canvas
 
 Thanks for helping. This page covers setup, tests, commit style and sign-off.
 

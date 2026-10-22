@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Builds a demo repository for trying Gitboard Canvas and for the README screenshot: a fictional notes app with
+// Builds a demo repository for trying GitBoard Canvas and for the README screenshot: a fictional notes app with
 // features in every stage, dependencies, open decisions, phases, backdated history, and worktrees holding WIP,
 // staged and committed work.
 //   node scripts/demo-repo.mjs <empty-or-missing-folder>

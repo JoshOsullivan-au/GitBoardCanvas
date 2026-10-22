@@ -1,6 +1,6 @@
 # Concepts
 
-Gitboard Canvas treats a repository folder as a product lifecycle. This page explains the ideas for someone who has not used the approach before. The exact rules are in [spec.md](spec.md).
+GitBoard Canvas treats a repository folder as a product lifecycle. This page explains the ideas for someone who has not used the approach before. The exact rules are in [spec.md](spec.md).
 
 ## The lifecycle
 
@@ -8,7 +8,7 @@ A repo keeps one lifecycle folder, `roadmap/` by default. Inside it are numbered
 
 The stage folder a feature sits in is its stage. There is no status field to edit, so the board, the terminal and your editor can never disagree.
 
-Each stage has one gate: a person decides. Gitboard Canvas makes the move cheap and safe. It does not decide when a feature is ready.
+Each stage has one gate: a person decides. GitBoard Canvas makes the move cheap and safe. It does not decide when a feature is ready.
 
 ## Features
 
@@ -67,7 +67,7 @@ The feature README carries what a person reads before building:
 
 ## Relations
 
-Gitboard Canvas reads three kinds of relation from the text. No special syntax is needed.
+GitBoard Canvas reads three kinds of relation from the text. No special syntax is needed.
 
 - Blocked: a line that names another feature's slug and reads as a dependency (`depends on`, `needs`, `requires`, `after`, `blocked by`, `builds on`, `waits for`, `prerequisite`, `pointer`). The card is blocked until that feature reaches the last stage.
 - Gated: the feature waits on a person. That means open items under an `Open decisions` heading, or unticked items under `Ops actions`. An item marked settled, decided, resolved, confirmed, closed, withdrawn or superseded does not count.
@@ -103,14 +103,14 @@ A move changes a feature from one stage to another. Every move, from the board o
 8. Fast-forward the main branch to the commit. If the main branch moved meanwhile, discard the commit and redo the whole move once from the new tip, so the rewrite, hooks and lint gate see the current tree. If it moves again, the move is refused.
 9. Confirm the main branch equals the move commit, delete the branch, remove the worktree and release the lock. A commit that did not land is kept as a tag `archive/<branch>`. Empty leftover folders of the old place are then removed.
 
-Gitboard Canvas never pushes, never force-updates a branch, never stashes, never resets and never touches another worktree's files.
+GitBoard Canvas never pushes, never force-updates a branch, never stashes, never resets and never touches another worktree's files.
 
 ## Worked example
 
 You are building a feature called `checkout-redesign`.
 
 1. You write `roadmap/1.ideas/checkout-redesign.md` with the problem and a rough fix. The card appears in Ideas.
-2. You accept the idea and drag the card to Planning. Gitboard Canvas shows the steps, you confirm, and one commit lands: `gitboard: move checkout-redesign to Planning`.
+2. You accept the idea and drag the card to Planning. GitBoard Canvas shows the steps, you confirm, and one commit lands: `gitboard: move checkout-redesign to Planning`.
 3. In Planning you copy the feature template into `roadmap/2.planning/checkout-redesign/` and write two phases, `01-cart-summary.md` and `02-payment-step.md`. In the README you add `Depends on the card-vault feature` under Order. While `card-vault` is not complete, the card shows as blocked.
 4. You list a question under Open decisions: "Guest checkout or account required?" The card shows as gated until you answer it and mark it settled.
 5. You accept the plan and move the card to Open, then to In progress when work starts. Each move rewrites links, so a link in `docs/` that pointed at `2.planning/checkout-redesign` now points at `3.open/checkout-redesign`.

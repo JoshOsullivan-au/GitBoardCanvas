@@ -1,10 +1,10 @@
-# Gitboard Canvas
+# GitBoard Canvas
 
 A local kanban board for product work that keeps all of its state in your git repository. Each feature is a markdown file and a folder. The stage folder it sits in is its status, and moving a card is one git commit.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/board-dark.png">
-  <img alt="Gitboard Canvas: five stage columns, features grouped by area, and the dependency lines of a hovered feature" src="docs/board.png">
+  <img alt="GitBoard Canvas: five stage columns, features grouped by area, and the dependency lines of a hovered feature" src="docs/board.png">
 </picture>
 
 ## Why
@@ -21,7 +21,7 @@ A local kanban board for product work that keeps all of its state in your git re
 
 ## Install
 
-Gitboard Canvas is not on npm yet. Build it from source:
+GitBoard Canvas is not on npm yet. Build it from source:
 
 ```sh
 git clone https://github.com/JoshOsullivan-au/GitBoardCanvas.git
@@ -88,7 +88,7 @@ Run these in the git repository you want to track.
 | 4 In progress | `roadmap/4.in-progress/` | Every phase is done and verified. |
 | 5 Complete | `roadmap/5.complete/` | None. Finished features stay as history. |
 
-There is no `status:` field to fall out of step with the folder. You can rename the stages or use two to nine of them in `gitboard.config.json`. Gitboard Canvas makes a move cheap. A person still decides when a feature is ready.
+There is no `status:` field to fall out of step with the folder. You can rename the stages or use two to nine of them in `gitboard.config.json`. GitBoard Canvas makes a move cheap. A person still decides when a feature is ready.
 
 ### A feature's files
 
@@ -113,7 +113,7 @@ roadmap/3.open/checkout-redesign/        the feature folder (optional)
 4. Runs your `hooks.onEnter` commands for the new stage, then the lint gate.
 5. Commits once, fast-forwards the main branch, and removes the worktree.
 
-Gitboard Canvas never pushes, force-updates, stashes or resets, and never touches another worktree's files.
+GitBoard Canvas never pushes, force-updates, stashes or resets, and never touches another worktree's files.
 
 ## Commands
 
@@ -175,4 +175,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT
 
 MIT. See [LICENSE](LICENSE).
 
-Gitboard Canvas, Josh O'Sullivan.
+GitBoard Canvas, Josh O'Sullivan.

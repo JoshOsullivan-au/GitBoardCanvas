@@ -1,6 +1,6 @@
 # v0.1 core
 
-Why: the read model, move engine and board page that every other Gitboard Canvas feature builds on.
+Why: the read model, move engine and board page that every other GitBoard Canvas feature builds on.
 
 ## Build list
 

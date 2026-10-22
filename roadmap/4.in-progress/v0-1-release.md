@@ -1,6 +1,6 @@
 # v0.1 release
 
-Why: ship the first public version of Gitboard Canvas so a team can install it with one command and move features on a board.
+Why: ship the first public version of GitBoard Canvas so a team can install it with one command and move features on a board.
 
 Builds on `v0-1-core`. Plan and order: [`README.md`](./v0-1-release/README.md).
 

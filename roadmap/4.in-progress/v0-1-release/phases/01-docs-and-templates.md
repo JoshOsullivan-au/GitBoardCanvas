@@ -2,7 +2,7 @@
 
 ## Overview
 
-Write the README, the concept and configuration docs and the templates that `gitboard init` copies. Gitboard Canvas's own roadmap folder is part of this phase.
+Write the README, the concept and configuration docs and the templates that `gitboard init` copies. GitBoard Canvas's own roadmap folder is part of this phase.
 
 ## Directive
 
@@ -39,7 +39,7 @@ none
 1. Write the templates.
 2. Write the docs.
 3. Write the community files.
-4. Fill in Gitboard Canvas's own roadmap.
+4. Fill in GitBoard Canvas's own roadmap.
 
 ## UI
 

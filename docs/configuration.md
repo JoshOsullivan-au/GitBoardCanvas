@@ -1,6 +1,6 @@
 # Configuration
 
-Gitboard Canvas reads `gitboard.config.json` at the repo root. The file is optional, and so is every key in it. Anything you leave out takes the default. `gitboard init` writes a file with the defaults.
+GitBoard Canvas reads `gitboard.config.json` at the repo root. The file is optional, and so is every key in it. Anything you leave out takes the default. `gitboard init` writes a file with the defaults.
 
 A bad config fails once with the whole list of problems, for example `gitboard.config.json: port must be 1 to 65535`.
 
@@ -74,7 +74,7 @@ A group is a heading cards sit under inside a column. `match` is a JavaScript re
 
 ### codeRoots
 
-Gitboard Canvas ties code changes to a feature when the feature's markdown names a path. `"auto"` considers every tracked top-level folder. List folders to narrow it.
+GitBoard Canvas ties code changes to a feature when the feature's markdown names a path. `"auto"` considers every tracked top-level folder. List folders to narrow it.
 
 ```json
 { "codeRoots": ["src", "packages", "scripts"] }
@@ -101,7 +101,7 @@ A move rewrites links in tracked text files. Paths that start with any prefix he
 }
 ```
 
-- `builtin`: run Gitboard Canvas's own checks (stage folders exist, no slug in two stages, relative links resolve, phase file names are valid, and the two heading lists below).
+- `builtin`: run GitBoard Canvas's own checks (stage folders exist, no slug in two stages, relative links resolve, phase file names are valid, and the two heading lists below).
 - `command`: an extra command run in the move worktree. A non-zero exit refuses the move. `null` means none.
 - `phaseHeadings`: when set, every phase file must have these `## ` headings.
 - `readmeSections`: when set, every feature README must have these `## ` sections.
@@ -121,11 +121,11 @@ A hook that exits non-zero refuses the move.
 
 ### github
 
-Set `false` to stop Gitboard Canvas from calling `gh`. The PR step is then empty.
+Set `false` to stop GitBoard Canvas from calling `gh`. The PR step is then empty.
 
 ## Hook recipes
 
-Hooks and lint commands are code you wrote. Gitboard Canvas runs them as you, so review them like any script in your repo.
+Hooks and lint commands are code you wrote. GitBoard Canvas runs them as you, so review them like any script in your repo.
 
 ### Append a changelog line when a feature completes
 

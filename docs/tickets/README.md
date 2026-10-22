@@ -1,4 +1,4 @@
-# Gitboard Canvas 0.1 tickets
+# GitBoard Canvas 0.1 tickets
 
 Task graph for [spec.md](../spec.md). A ticket starts when every ticket it is blocked by has landed on `main`.
 

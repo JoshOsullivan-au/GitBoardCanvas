@@ -2,7 +2,7 @@
 
 ## Threat model
 
-Gitboard Canvas is a local tool. It reads and writes one git repository on your machine and serves a page to you.
+GitBoard Canvas is a local tool. It reads and writes one git repository on your machine and serves a page to you.
 
 - The server binds to `127.0.0.1` and `::1` only. It is not reachable from other machines.
 - It refuses any request whose Host header is not a loopback name with the board's port, which blocks DNS rebinding.
@@ -12,7 +12,7 @@ Gitboard Canvas is a local tool. It reads and writes one git repository on your 
 - The only network use is `gh`, which reads open pull requests when it is installed and signed in. Set `github` to `false` to stop that.
 - It never pushes, never force-updates a branch, never stashes or resets, and never touches another worktree's files.
 
-Hooks (`hooks.onEnter`) and `lint.command` run shell commands. They are code the repo owner wrote in `gitboard.config.json`, and they run with your permissions. Treat that file like any build script: review changes to it, and do not run Gitboard Canvas in a repo whose config you do not trust.
+Hooks (`hooks.onEnter`) and `lint.command` run shell commands. They are code the repo owner wrote in `gitboard.config.json`, and they run with your permissions. Treat that file like any build script: review changes to it, and do not run GitBoard Canvas in a repo whose config you do not trust.
 
 Out of scope: someone with local access to your machine or your repo, and malicious hook commands that you chose to run.
 

@@ -68,7 +68,7 @@ describe("board server", () => {
 		const res = await request("/");
 		expect(res.status).toBe(200);
 		expect(res.body).not.toContain("__ICONS__");
-		expect(res.body).toContain("Gitboard Canvas");
+		expect(res.body).toContain("GitBoard Canvas");
 	});
 
 	it("serves the board", async () => {

@@ -1,6 +1,6 @@
 # Third-party notices
 
-Gitboard Canvas includes or depends on the following third-party work. Each keeps its own licence, reproduced below.
+GitBoard Canvas includes or depends on the following third-party work. Each keeps its own licence, reproduced below.
 
 ## Glass UI
 

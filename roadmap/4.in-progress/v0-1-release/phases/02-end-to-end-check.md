@@ -2,7 +2,7 @@
 
 ## Overview
 
-Run Gitboard Canvas against a fresh repository and fix what breaks. Cover init, serve, list, lint and a move from the board.
+Run GitBoard Canvas against a fresh repository and fix what breaks. Cover init, serve, list, lint and a move from the board.
 
 ## Directive
 

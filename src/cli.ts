@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// Gitboard Canvas CLI (`gitboard`): serve the board, move a feature, lint the lifecycle folder, list features, or lay out a new repo.
+// GitBoard Canvas CLI (`gitboard`): serve the board, move a feature, lint the lifecycle folder, list features, or lay out a new repo.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +13,7 @@ import { runLint } from "./lint.js";
 import { moveFeature, planMove } from "./move.js";
 import { listen } from "./server.js";
 
-const HELP = `Gitboard Canvas: a local kanban for a folder-based product lifecycle
+const HELP = `GitBoard Canvas: a local kanban for a folder-based product lifecycle
 
 Usage:
   gitboard [serve] [--port N] [--open]   start the board (default port 4610)

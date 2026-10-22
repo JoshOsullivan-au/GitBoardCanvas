@@ -1,6 +1,6 @@
 # T2 Read model: board, relations, pipeline
 
-Spec: sections 1.2 to 1.6, R14, R16. Port from the source build (read-only reference: the private project Gitboard Canvas was extracted from):
+Spec: sections 1.2 to 1.6, R14, R16. Port from the source build (read-only reference: the private project GitBoard Canvas was extracted from):
 
 - `<original build>/scripts/roadmap-board/board.ts` → `src/board.ts`
 - `<original build>/scripts/roadmap-board/relations.ts` → `src/relations.ts`

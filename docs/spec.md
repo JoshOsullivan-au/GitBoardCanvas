@@ -1,10 +1,10 @@
-# Gitboard Canvas specification
+# GitBoard Canvas specification
 
 Version 0.1, 22/10/2026. Status: building.
 
-Gitboard Canvas is a local kanban for product development that keeps its whole state in the repository. Each feature is a markdown file and a folder. The stage folder a feature sits in is its lifecycle stage. Moving a card on the board moves the folder with `git mv`, rewrites every link to the old path, runs the repo's checks and lands one commit on the main branch. Nothing is stored outside git, so the terminal, an editor, a coding agent and the board all see the same state.
+GitBoard Canvas is a local kanban for product development that keeps its whole state in the repository. Each feature is a markdown file and a folder. The stage folder a feature sits in is its lifecycle stage. Moving a card on the board moves the folder with `git mv`, rewrites every link to the old path, runs the repo's checks and lands one commit on the main branch. Nothing is stored outside git, so the terminal, an editor, a coding agent and the board all see the same state.
 
-Gitboard Canvas is product agnostic. It knows nothing about the product it tracks beyond what `gitboard.config.json` tells it.
+GitBoard Canvas is product agnostic. It knows nothing about the product it tracks beyond what `gitboard.config.json` tells it.
 
 ## 1. Concepts
 
@@ -23,7 +23,7 @@ A repo keeps one lifecycle folder (`roadmap/` by default). Inside it sit numbere
 Rules:
 
 - There is no `status:` field. The folder a feature sits in is its stage, so a stage can never disagree with a field.
-- One human gate per move. Gitboard Canvas makes the move cheap and safe. It never decides that a feature is ready.
+- One human gate per move. GitBoard Canvas makes the move cheap and safe. It never decides that a feature is ready.
 - Stage names, folders and count (two to nine) are configurable. The number prefix fixes the order.
 
 ### 1.2 A feature is a file and a folder
@@ -71,7 +71,7 @@ The feature README carries the sections a person reads before building: **Order*
 
 ### 1.5 Relations: blocked, gated, linked
 
-Gitboard Canvas reads three kinds of relation from the text. No extra syntax is needed.
+GitBoard Canvas reads three kinds of relation from the text. No extra syntax is needed.
 
 - **Blocked:** a line that names another feature's slug and reads as a dependency (`depends on`, `needs`, `requires`, `after`, `blocked by`, `builds on`, `waits for`, `prerequisite`, `pointer`). The card is blocked while that feature is not in the last stage.
 - **Gated:** the feature waits on a person. Open items under an `Open decisions` heading (list items or table rows, skipping ones marked settled, decided, resolved, confirmed, closed, withdrawn or superseded), or unticked items under `Ops actions`.
@@ -105,7 +105,7 @@ Moving a feature from stage A to stage B:
 8. From the main checkout, `git merge --ff-only` the move branch. If the main branch moved meanwhile, the commit was checked against an old tree, so it is discarded and the whole move is redone once from the new tip (steps 3 to 8: fresh `git mv`, rewrite, hooks, gate, and a commit that records the new base). If the main branch moves again, the move is refused.
 9. Confirm the main branch now equals the move commit, delete the move branch, remove the worktree, release the lock. A commit that did not land is kept as a tag `archive/<branch>`. Then remove empty leftover folders of the old place in the main checkout (folders that are empty or hold only `.DS_Store`).
 
-Gitboard Canvas never pushes, never force-updates a branch, never stashes, never resets, and never touches another worktree's files.
+GitBoard Canvas never pushes, never force-updates a branch, never stashes, never resets, and never touches another worktree's files.
 
 ## 2. Requirements
 
@@ -161,7 +161,7 @@ Gitboard Canvas never pushes, never force-updates a branch, never stashes, never
 | `hooks.onEnter` | `{}` | `{ "5": ["node scripts/changelog.mjs {slug}"] }`, keyed by stage id or folder. |
 | `github` | `true` | Read open pull requests with `gh`. |
 
-Hook and lint commands are code the repo owner wrote; Gitboard Canvas runs them in the move worktree with the placeholders shell-quoted.
+Hook and lint commands are code the repo owner wrote; GitBoard Canvas runs them in the move worktree with the placeholders shell-quoted.
 
 ### 2.6 Built-in lint
 
@@ -186,7 +186,7 @@ Hook and lint commands are code the repo owner wrote; Gitboard Canvas runs them 
 - Writing to GitHub (issues, project boards). Read-only pull requests only.
 - Multi-repo boards.
 - Editing markdown from the board. Edit in your editor; the board follows.
-- Hosting. Gitboard Canvas is a local tool.
+- Hosting. GitBoard Canvas is a local tool.
 
 ## 4. Licence
 
