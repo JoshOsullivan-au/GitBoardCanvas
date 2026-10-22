@@ -155,6 +155,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 /* The board's dark backdrop is near-black, where glass-ui's dark regular (white at 7%) reads as pale slabs: smoke it instead. */
 .dark .lg-regular { --lg-base: rgba(22, 24, 31, 0.62); }
 .dark .lg-clear { --lg-base: rgba(255, 255, 255, 0.025); }
+/* The rim gradient sits on border-box under a translucent wash, so in dark it fills the whole panel with white and washes out the text: draw the rim as a plain border instead. */
+.dark .lg { background: linear-gradient(var(--lg-wash), var(--lg-wash)) padding-box; border-color: var(--lg-rim-lo); }
+.dark { --lg-rim-lo: rgba(255, 255, 255, 0.12); }
 /* A column is a resting panel, so it keeps only the highlight; cards and headers keep the drop shadow. */
 .fwcol.lg { box-shadow: inset 0 1px 0 var(--lg-highlight); }
 @media (prefers-reduced-transparency: reduce) {
@@ -202,7 +205,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 .card .st { flex: none; width: 18px; height: 18px; display: grid; place-items: center; font-size: 12px; }
 .card.done { --lg-rim-hi: color-mix(in oklch, var(--tone-good) 70%, transparent); --lg-rim-lo: color-mix(in oklch, var(--tone-good) 25%, transparent); }
 .card.done .st { color: oklch(0.99 0 0); background: var(--tone-good); border-radius: 999px; }
-.card.lock .tile, .card.lock .tx b { opacity: 0.55; }
+.card.lock .tile { opacity: 0.55; }
+.card.lock .tx b { color: var(--muted-foreground); }
 .card.lock .st { color: var(--muted-foreground); }
 .card.lock .tx span { color: var(--arrow-soft); }
 .card.wait .st::before { content: ""; width: 12px; height: 12px; border: 2px solid var(--arrow-soft); border-right-color: transparent; border-radius: 999px; }
