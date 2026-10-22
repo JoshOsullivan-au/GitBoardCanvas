@@ -1,0 +1,30 @@
+# Publishes the package to GitHub Packages as @joshosullivan-au/gitboard-canvas, so it shows under Packages on the
+# repository page. npmjs.com stays the main registry (gitboard-canvas); this is a mirror of the same version.
+name: GitHub Packages
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.12"
+          registry-url: https://npm.pkg.github.com
+          scope: "@joshosullivan-au"
+      - run: npm ci
+      - run: npm test
+      # GitHub Packages only takes scoped names; the scoped name is set here and never committed.
+      - run: npm pkg set name=@joshosullivan-au/gitboard-canvas
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
