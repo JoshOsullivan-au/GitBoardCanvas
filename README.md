@@ -40,7 +40,7 @@ Or add it to a project, so everyone on the team gets the same version, with a sc
 npm install -D gitboard-canvas
 ```
 
-With `npx`, put `--` before a flag that has no command in front of it, or npm reads the flag itself: `npx gitboard-canvas -- --version`.
+With `npx`, every command and flag in this README works after `npx gitboard-canvas`, for example `npx gitboard-canvas --version`.
 
 To try it on sample data first, clone the repository, build a demo repository and open its board:
 
