@@ -127,7 +127,7 @@ States: Done, In progress, Planned.
 
 ## Open decisions
 
-- Folder name: `gitboard-roadmap/` (recommended), `.gitboard-roadmap/`, or `GitBoard Roadmap/` with a space?
+- Folder name: settled 22/10/2026, `gitboard-roadmap/` (visible, titled "GitBoard Roadmap"), tool state in `.gitboard/`.
 - Does this repo's own `roadmap/` get renamed to `gitboard-roadmap/` in phase 02, or stay as the compatibility example?
 - Default for tracked files in the main checkout: `git mv` into the feature folder (recommended, keeps history), or copy and leave the original?
 - Ship the plugin from this repo's marketplace file (recommended), or from a separate plugin repo?

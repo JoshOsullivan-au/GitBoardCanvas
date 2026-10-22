@@ -20,3 +20,4 @@ Builds on `v0-1-core`. Ships after `v0-1-release`.
 - 22/10/2026: two skills, run in order: `gitboard-grill` decides, `gitboard-ingest` files. Grill never moves a file; ingest never decides inclusion.
 - 22/10/2026: the deterministic work (finding files, reading status evidence, moving and committing) lives in the CLI so it is tested; the skills hold the judgement and the conversation.
 - 22/10/2026: names follow the GitBoard Canvas convention. Display names are "GitBoard Grill" and "GitBoard Ingest"; skill and plugin identifiers are kebab-case (`gitboard-grill`, `gitboard-ingest`) because plugin components must be.
+- 22/10/2026: the lifecycle folder default is `gitboard-roadmap/` (visible, titled "GitBoard Roadmap"); tool state lives in `.gitboard/` (Josh).
