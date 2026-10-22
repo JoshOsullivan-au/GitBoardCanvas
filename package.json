@@ -1,0 +1,53 @@
+{
+  "name": "gitboard-canvas",
+  "version": "0.1.0",
+  "description": "Gitboard Canvas: a local kanban for a folder-based product lifecycle. Each feature is a folder; moving a card is a git commit.",
+  "license": "MIT",
+  "author": "Josh O'Sullivan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoshOsullivan-au/gitboard-canvas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JoshOsullivan-au/gitboard-canvas/issues"
+  },
+  "homepage": "https://github.com/JoshOsullivan-au/gitboard-canvas#readme",
+  "type": "module",
+  "bin": {
+    "gitboard-canvas": "dist/cli.js",
+    "gitboard": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-ui.mjs",
+    "prepare": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "npm run build && node dist/cli.js serve"
+  },
+  "dependencies": {
+    "marked": "^18.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "keywords": [
+    "kanban",
+    "roadmap",
+    "git",
+    "worktree",
+    "product-lifecycle",
+    "local-first"
+  ]
+}
