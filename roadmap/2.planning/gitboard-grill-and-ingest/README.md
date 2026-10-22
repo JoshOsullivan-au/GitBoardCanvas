@@ -76,7 +76,8 @@ The lifecycle folder becomes `gitboard-roadmap/` (shown as "GitBoard Roadmap" in
 | `file-organizer` | Analyse, propose, confirm, then act; log every move; archive, never delete. |
 | `file-system` | `find` patterns with prune lists, metadata via `stat` and git, safe batch moves. |
 | `grilling` | Design-tree rounds, the frontier, a recommended answer on every question, facts found by sub-agents. |
-| `grill-with-docs`, `ask-matt` | User-invoked only. Josh runs `/grill-with-docs` on this plan, and `/ask-matt` for skill-shape questions. GitBoard Grill can suggest them but cannot call them. |
+| `grill-with-docs` (`grilling` + `domain-modeling`) | Pattern GitBoard Grill copies: write each answer down the moment it settles, challenge fuzzy names against the words already in use, test stage claims against concrete evidence, check claims against the code, and record only hard-to-reverse choices as decisions. See phase 04. |
+| `ask-matt` | Router to the Matt Pocock skill set; the skills it routes to (`grilling`, `domain-modeling`, `writing-for-agents`) are the ones referenced here. |
 | OKF (`01-Obsidian Vault/OKF-INDEX.md`) | Front matter (`type`, `title`, `description`, `timestamp`, `tags`) on the roadmap index and the skills' reference files, so agents can route without reading every file. |
 
 ## Plugin layout
@@ -110,7 +111,7 @@ Install: `/plugin marketplace add JoshOsullivan-au/GitBoardCanvas`, then `/plugi
 
 ## Ops actions
 
-- [ ] Josh runs `/grill-with-docs` on this plan and answers the open decisions below.
+None.
 
 ## Status
 

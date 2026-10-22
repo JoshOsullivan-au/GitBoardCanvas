@@ -15,13 +15,21 @@ A person with a fragmented repo types "get my plans onto the board" (or `/gitboa
 ## Limitations/Restrictions
 
 - The skill never moves, copies or commits a document. It writes only under `.gitboard/ingest/`.
-- `grill-with-docs` and `ask-matt` are user-invoked only; the skill may suggest them, not call them.
+- The skill copies the `grill-with-docs` patterns into its own instructions; it does not call `grill-with-docs` or `ask-matt`.
 
 ## Guardrails
 
 - Rounds follow the `grilling` pattern: the frontier only, numbered questions, a recommended answer on each, facts found by the agent (never asked of the person).
 - Round 1 is per source family ("`.rpe/`: 14 docs, mostly research. Include as references to features, include as features, or leave off?"). Later rounds are per candidate: include, stage, slug and title, group, merge or split, depends on.
 - Completed work is one grouped question per source. Recommend `5.complete` only when an open feature links to or depends on it, or it changed in the last 90 days; the rest defaults to leave off and is listed in the decision log.
+- Patterns copied from `grill-with-docs` (`grilling` plus `domain-modeling`):
+  - **Write as you go.** Each settled answer goes into `.gitboard/ingest/grill-<DD-MM-YYYY>.md` and the manifest the moment it settles, not at the end, so a stopped session keeps its decisions.
+  - **Challenge names against the board.** Existing feature slugs and titles, and `CONTEXT.md` when the repo has one, are the vocabulary. When a doc calls something "CRM v2" and the board has `crm-rework`, ask whether they are the same feature before proposing a new slug.
+  - **Sharpen fuzzy names.** Propose one canonical kebab-case slug and title per candidate; never let two candidates share a vague name such as "dashboard".
+  - **Test with concrete scenarios.** Put a specific case to the person where stage or scope is unclear ("this plan has 9 of 12 boxes ticked but its branch merged in August: in progress or complete?").
+  - **Check claims against the code.** When a doc says done, check the branch is merged and the named files exist; surface any contradiction instead of trusting the doc.
+  - **Record decisions sparingly.** A choice goes into the feature's `## Decisions` list only when it is hard to reverse, surprising without context and the result of a real trade-off (for example merging two plans into one feature). Everything else stays in the grill log.
+  - **Create files lazily.** `.gitboard/ingest/` and the log are created on the first settled answer.
 - At most 10 questions a round. Every round offers "accept all recommendations" for the rest.
 - Evidence is quoted in one line per recommendation, from scan's `evidence[]`.
 - Worktrees owned by other sessions are described, never touched.
@@ -54,7 +62,7 @@ none
 
 ## Files/references
 
-- `skill-creator`, `plugin-dev:plugin-structure`, `grilling` skills
+- `skill-creator`, `plugin-dev:plugin-structure`, `grilling`, `domain-modeling` skills (`grill-with-docs` is these two together)
 - `roadmap/README.md` (stage gates), `docs/concepts.md`
 
 ## Review

@@ -15,7 +15,8 @@ Read these before starting any phase.
 - `skill-creator`: skill anatomy, progressive disclosure, eval loop
 - `plugin-dev:plugin-structure`: plugin manifest and component layout
 - `grilling`: design-tree rounds with a recommended answer per question
-- `grill-with-docs`, `ask-matt`: user-invoked Matt Pocock skills; Josh runs them on this plan
+- `grill-with-docs`: Matt Pocock's skill that runs `grilling` and `domain-modeling` together; GitBoard Grill copies its patterns (write as you go, challenge names, concrete scenarios, check against code, sparing decisions)
+- `domain-modeling`: glossary and ADR discipline behind the "write as you go" and "record decisions sparingly" rules
 - `file-organizer`, `file-system`: analyse, propose, confirm, act; prune lists; safe batch moves
 - OKF index: `/Users/home/01-Obsidian Vault/OKF-INDEX.md` (front matter fields `type`, `title`, `description`, `okf_version`, `tags`, `timestamp`)
 - Ecomm canvas install learning (22/10/2026): spaces in folder names break lint; GitBoard resolves the root to the main checkout
