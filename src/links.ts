@@ -21,7 +21,10 @@ export function mapPath(p: string, moves: PathMove[]): string | null {
 	return null;
 }
 
-const MD_LINK = /(\]\()(<?)([^)\s>]+)(>?)(\s+"[^"]*")?\)/g;
+/** A link destination; one level of balanced parentheses is allowed, as in a Next.js route group `app/(shell)/`. */
+export const LINK_DEST = String.raw`(?:[^()\s>]|\([^()\s>]*\))+`;
+
+const MD_LINK = new RegExp(String.raw`(\]\()(<?)(${LINK_DEST})(>?)(\s+"[^"]*")?\)`, "g");
 
 function relLink(fromDir: string, target: string, keepSlash: boolean, hadDot: boolean): string {
 	let rel = path.posix.relative(fromDir, target) || ".";

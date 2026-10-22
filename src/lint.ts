@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import type { GitBoardConfig } from "./config.js";
+import { LINK_DEST } from "./links.js";
 
 const PHASE_FILE = /^\d{2}[a-z]?-[a-z0-9][a-z0-9-]*\.md$/i;
 /** Feature slugs: letters, digits, `-` and `_`. */
@@ -98,7 +99,7 @@ export function runLint(root: string, config: GitBoardConfig): { ok: boolean; pr
 	for (const file of walkMarkdown(base)) {
 		if (file.startsWith(templates + path.sep)) continue;
 		const text = fs.readFileSync(file, "utf8").replace(/```[\s\S]*?```/g, "");
-		for (const m of text.matchAll(/\]\(<?([^)\s>]+)>?(?:\s+"[^"]*")?\)/g)) {
+		for (const m of text.matchAll(new RegExp(String.raw`\]\(<?(${LINK_DEST})>?(?:\s+"[^"]*")?\)`, "g"))) {
 			const href = m[1] ?? "";
 			if (/^([a-z][a-z0-9+.-]*:|#|\/)/i.test(href)) continue;
 			const target = href.split(/[#?]/)[0] ?? "";

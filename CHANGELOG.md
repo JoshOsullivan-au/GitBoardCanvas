@@ -12,3 +12,7 @@ First version.
 - `gitboard init`, `serve`, `move`, `lint` and `list`.
 - Configuration in `gitboard.config.json`, including an optional icon per group.
 - `scripts/demo-repo.mjs` builds a demo repository to try the board on.
+
+### Fixed
+
+- Lint and link rewrite read a whole link path that holds parentheses, such as `app/(shell)/page.tsx`, instead of stopping at the first `)`.

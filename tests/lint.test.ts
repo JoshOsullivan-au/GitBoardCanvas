@@ -51,6 +51,12 @@ describe("runLint", () => {
 		expect(runLint(root, config()).problems).toEqual(["L3: roadmap/3.open/a.md links to missing ./gone.md"]);
 	});
 
+	it("L3: reads a whole path that holds parentheses", () => {
+		write("app/(shell)/page.tsx");
+		write("roadmap/3.open/a.md", "[ok](../../app/(shell)/page.tsx) ([gone](../../app/(shell)/gone.tsx))\n");
+		expect(runLint(root, config()).problems).toEqual(["L3: roadmap/3.open/a.md links to missing ../../app/(shell)/gone.tsx"]);
+	});
+
 	it("L4: phase file naming", () => {
 		write("roadmap/3.open/a/phases/1-x.md");
 		write("roadmap/3.open/a/phases/notes.md");

@@ -48,6 +48,13 @@ describe("link rewrite", () => {
 		expect(out).toBe("Build `roadmap/4.in-progress/ad-board/` and [it](../roadmap/4.in-progress/ad-board.md); not 3.open/ad-board-two.");
 	});
 
+	it("rewrites a link whose path holds parentheses, inside prose parentheses", () => {
+		const withGroup = new Set([...files, "roadmap/3.open/ad-board/(drafts)/a.md"]);
+		const text = "See ([draft](./ad-board/(drafts)/a.md)).";
+		const out = rewriteFile("roadmap/3.open/daily-reporting.md", text, moves, (p) => withGroup.has(p), tokens);
+		expect(out).toBe("See ([draft](../4.in-progress/ad-board/(drafts)/a.md)).");
+	});
+
 	it("leaves a broken link alone", () => {
 		const text = "[gone](./missing.md)";
 		expect(rewriteFile("roadmap/3.open/ad-board.md", text, moves, exists, tokens)).toBe(text);
