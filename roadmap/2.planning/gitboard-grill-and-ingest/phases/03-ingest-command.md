@@ -19,7 +19,8 @@ Accepted candidates appear on the board in the stage the person chose, each with
 
 ## Guardrails
 
-- Tracked files in the main checkout: `git mv` into `<stage>/<slug>/docs/` (or copy, if the open decision lands that way).
+- Tracked files in the main checkout: `git mv` into `<stage>/<slug>/docs/`, keeping history.
+- Filed documents keep their bytes: no front matter or other edits beyond link rewrites after a move.
 - Untracked, gitignored, or worktree files: copied, never moved. The source stays where it is.
 - Slug clash with an existing feature: stop and report, never merge silently.
 - One commit, subject `gitboard: ingest <n> features`, with a `GitBoard-Ingest: <manifest hash>` trailer. Fast-forward only, same redo-on-main-moved rule as move.

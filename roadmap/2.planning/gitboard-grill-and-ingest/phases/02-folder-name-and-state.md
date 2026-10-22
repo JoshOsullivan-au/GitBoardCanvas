@@ -14,7 +14,7 @@ New installs get `gitboard-roadmap/` and `.gitboard/`; existing installs see no 
 
 ## Limitations/Restrictions
 
-- No automatic rename of an existing `roadmap/`. Moving it is a person's call (see Open decisions in the plan).
+- No automatic rename of an existing `roadmap/` in a user's repo. Moving it is that person's call. This repo's own folder is renamed by hand in step 3.
 
 ## Guardrails
 
@@ -38,8 +38,9 @@ none
 ## Steps
 
 1. Default and compatibility rule in `src/config.ts`, with tests. Done when both repo shapes load.
-2. Init and template title changes, with tests. Done when the init test lists the new paths.
-3. Docs update. Done when `git grep "roadmap/"` in docs only shows compatibility notes.
+2. Init and template title changes, with tests; the template `README.md` gets OKF front matter (`type`, `title`, `description`, `tags`, `timestamp`). Done when the init test lists the new paths.
+3. Rename this repo's own `roadmap/` to `gitboard-roadmap/` with `git mv` and update links. Done when `gitboard lint` and `gitboard list` pass on this repo.
+4. Docs update. Done when `git grep "roadmap/"` in docs only shows compatibility notes.
 
 ## UI
 

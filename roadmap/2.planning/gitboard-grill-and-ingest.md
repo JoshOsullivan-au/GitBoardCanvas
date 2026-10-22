@@ -21,3 +21,8 @@ Builds on `v0-1-core`. Ships after `v0-1-release`.
 - 22/10/2026: the deterministic work (finding files, reading status evidence, moving and committing) lives in the CLI so it is tested; the skills hold the judgement and the conversation.
 - 22/10/2026: names follow the GitBoard Canvas convention. Display names are "GitBoard Grill" and "GitBoard Ingest"; skill and plugin identifiers are kebab-case (`gitboard-grill`, `gitboard-ingest`) because plugin components must be.
 - 22/10/2026: the lifecycle folder default is `gitboard-roadmap/` (visible, titled "GitBoard Roadmap"); tool state lives in `.gitboard/` (Josh).
+- 22/10/2026: this repo's own `roadmap/` is renamed to `gitboard-roadmap/` in phase 02, so the project runs on its own default (Josh).
+- 22/10/2026: ingest moves tracked main-checkout files with `git mv` to keep history and avoid drifting copies; everything else is copied (Josh).
+- 22/10/2026: the plugin ships from this repo so the skills always match the CLI they were tested with (Josh).
+- 22/10/2026: completed work is offered per source and recommended only when linked to an open feature or changed in the last 90 days, so the Complete column is not buried (Josh).
+- 22/10/2026: OKF front matter goes on the roadmap index and skill references only; filed docs stay byte for byte so history and provenance stay clean (Josh).

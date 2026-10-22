@@ -21,6 +21,7 @@ A person with a fragmented repo types "get my plans onto the board" (or `/gitboa
 
 - Rounds follow the `grilling` pattern: the frontier only, numbered questions, a recommended answer on each, facts found by the agent (never asked of the person).
 - Round 1 is per source family ("`.rpe/`: 14 docs, mostly research. Include as references to features, include as features, or leave off?"). Later rounds are per candidate: include, stage, slug and title, group, merge or split, depends on.
+- Completed work is one grouped question per source. Recommend `5.complete` only when an open feature links to or depends on it, or it changed in the last 90 days; the rest defaults to leave off and is listed in the decision log.
 - At most 10 questions a round. Every round offers "accept all recommendations" for the rest.
 - Evidence is quoted in one line per recommendation, from scan's `evidence[]`.
 - Worktrees owned by other sessions are described, never touched.

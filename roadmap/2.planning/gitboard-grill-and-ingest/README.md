@@ -128,8 +128,8 @@ States: Done, In progress, Planned.
 ## Open decisions
 
 - Folder name: settled 22/10/2026, `gitboard-roadmap/` (visible, titled "GitBoard Roadmap"), tool state in `.gitboard/`.
-- Does this repo's own `roadmap/` get renamed to `gitboard-roadmap/` in phase 02, or stay as the compatibility example?
-- Default for tracked files in the main checkout: `git mv` into the feature folder (recommended, keeps history), or copy and leave the original?
-- Ship the plugin from this repo's marketplace file (recommended), or from a separate plugin repo?
-- Completed work older than a set age: offer it for `5.complete` history, or leave it off by default?
-- Should ingest add OKF front matter to the docs it files, or only to the roadmap index (recommended: index only, docs stay byte for byte)?
+- This repo's own `roadmap/`: settled 22/10/2026, renamed to `gitboard-roadmap/` with `git mv` in phase 02; fixtures cover the `roadmap/` compatibility rule.
+- Tracked files in the main checkout: settled 22/10/2026, `git mv` into the feature folder; untracked, gitignored and other-worktree files are copied.
+- Plugin home: settled 22/10/2026, this repo, through `.claude-plugin/marketplace.json` and `plugin/`.
+- Completed work: settled 22/10/2026, offered as one grouped question per source; recommended for `5.complete` only when an open feature links to or depends on it, or it changed in the last 90 days. The rest defaults to leave off and is listed in the decision log.
+- OKF front matter: settled 22/10/2026, on the roadmap index (`gitboard-roadmap/README.md`) and the skills' reference files only; filed docs stay byte for byte.
