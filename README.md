@@ -1,85 +1,165 @@
 # Gitboard Canvas
 
-Gitboard Canvas is a local kanban for product development that keeps all of its state in your repository. Each feature is a markdown file and a folder, the stage folder it sits in is its status, and moving a card on the board moves the folder with `git mv` and lands one commit.
+A local kanban board for product work that keeps all of its state in your git repository. Each feature is a markdown file and a folder. The stage folder it sits in is its status, and moving a card is one git commit.
 
-![Gitboard Canvas](docs/board.png)
+![Gitboard Canvas board with five stage columns](docs/board.png)
+
+## Why
+
+- **No tracker to drift.** The board reads your files, so an editor, a terminal, a coding agent and the board all see the same state.
+- **Moves are safe.** A move runs in a temporary worktree, rewrites links, runs your checks and lands one commit. If any step fails, your main branch is untouched.
+- **Local only.** No account, no database, no hosted service.
+
+## Requirements
+
+- Node.js 22.12 or later
+- git 2.38 or later
+- Optional: the GitHub CLI (`gh`), signed in, to show open pull requests on cards
+
+## Install
+
+Gitboard Canvas is not on npm yet. Build it from source:
+
+```sh
+git clone https://github.com/JoshOsullivan-au/GitBoardCanvas.git
+cd GitBoardCanvas
+npm install        # also builds dist/
+npm link           # puts the `gitboard` command on your PATH
+```
+
+Without `npm link`, run `node /path/to/GitBoardCanvas/dist/cli.js` wherever this README says `gitboard`.
 
 ## Quick start
 
-```sh
-npx gitboard-canvas init   # create roadmap/, stage folders, templates and gitboard.config.json
-npx gitboard-canvas        # open the board on http://127.0.0.1:4610
-```
+Run these in the git repository you want to track.
 
-Needs Node 22.12 or later and git 2.38 or later. Run both commands from any git repo. `init` never overwrites a file that exists.
+1. Create the lifecycle folder, the stage folders, the templates and `gitboard.config.json`:
 
-To keep it in a project, run `npm i -D gitboard-canvas` and add `"board": "gitboard"` to your scripts.
+   ```sh
+   gitboard init
+   ```
 
-## The folder is the lifecycle
+   `init` never overwrites a file that exists. It also adds `.worktrees/` to `.gitignore`.
+
+2. Add your first feature by copying the template into the Ideas stage:
+
+   ```sh
+   cp roadmap/templates/feature/FEATURE.md roadmap/1.ideas/checkout-redesign.md
+   ```
+
+3. Commit the new files. A move refuses to run on uncommitted work.
+
+   ```sh
+   git add roadmap gitboard.config.json .gitignore
+   git commit -m "Add the lifecycle folder"
+   ```
+
+4. Start the board and open http://localhost:4610:
+
+   ```sh
+   gitboard
+   ```
+
+5. Drag the card to Planning, or move it from the terminal:
+
+   ```sh
+   gitboard move checkout-redesign planning
+   ```
+
+## How it works
+
+### The folder is the lifecycle
 
 | Stage | Folder | Gate to leave |
 | --- | --- | --- |
 | 1 Ideas | `roadmap/1.ideas/` | A person accepts the idea. |
 | 2 Planning | `roadmap/2.planning/` | A person accepts the phased plan. |
 | 3 Open | `roadmap/3.open/` | A person says build. |
-| 4 In progress | `roadmap/4.in-progress/` | Every phase is done and verified, or a person moves it. |
+| 4 In progress | `roadmap/4.in-progress/` | Every phase is done and verified. |
 | 5 Complete | `roadmap/5.complete/` | None. Finished features stay as history. |
 
-There is no `status:` field, so a stage can never disagree with a field. Stage names, folders and count (two to nine) are set in `gitboard.config.json`. Gitboard Canvas makes a move cheap and safe. It never decides a feature is ready.
+There is no `status:` field to fall out of step with the folder. You can rename the stages or use two to nine of them in `gitboard.config.json`. Gitboard Canvas makes a move cheap. A person still decides when a feature is ready.
 
-## A feature's files
+### A feature's files
 
-A feature called `checkout-redesign` in Open is:
-
-```
-roadmap/3.open/checkout-redesign.md        the build list
-roadmap/3.open/checkout-redesign/          the feature folder
-  README.md                                order, rules, source items, ops actions, status, open decisions
-  references.md                            research, designs, prior art
-  docs/  mocks/                            longer notes and mock-ups
-  phases/01-data-model.md                  one file per phase
-  phases/checklist.md                      one tick list per phase
+```text
+roadmap/3.open/checkout-redesign.md      the build list
+roadmap/3.open/checkout-redesign/        the feature folder (optional)
+  README.md                              order, rules, status, open decisions
+  references.md                          research, designs, prior art
+  phases/01-data-model.md                one file per phase
+  phases/checklist.md                    one tick list per phase
 ```
 
-The file and the folder move together. Progress is counted from `- [ ]` and `- [x]` items, never from a separate tracker. See [concepts](docs/concepts.md) for phases, relations and the git pipeline.
+- The slug is the file name without `.md`. Use letters, digits, `-` and `_`.
+- Progress comes from `- [ ]` and `- [x]` items in these files.
+- A card shows as **blocked** when its text says it depends on another feature that is not complete, and **gated** when it has open decisions or unticked ops actions.
 
-## How a move works
+### What a move does
 
-1. Gitboard Canvas refuses if the feature has uncommitted changes, another worktree has unlanded work for it, the target stage already holds the slug, or another move is running.
-2. It adds a temporary worktree on a new branch cut from your main branch.
-3. It runs `git mv` on the file and the folder, then rewrites every link that pointed at the old path.
-4. It runs your `hooks.onEnter` commands for the new stage, then the lint gate.
-5. It makes one commit, fast-forwards the main branch to it, and cleans up.
+1. Refuses if the feature has uncommitted changes, another worktree has unlanded work for it, the target stage already has that slug, or another move is running.
+2. Adds a temporary worktree on a new branch cut from your main branch.
+3. Runs `git mv` on the file and folder, then rewrites every link to the old path.
+4. Runs your `hooks.onEnter` commands for the new stage, then the lint gate.
+5. Commits once, fast-forwards the main branch, and removes the worktree.
 
-If any step fails, the main branch is untouched. Gitboard Canvas never pushes, force-updates, stashes or resets, and never touches another worktree's files. The full sequence is in [concepts](docs/concepts.md#how-a-move-works).
+Gitboard Canvas never pushes, force-updates, stashes or resets, and never touches another worktree's files.
 
-## CLI
+## Commands
 
-Installed locally the command is `gitboard`; with npx it is `npx gitboard-canvas`.
+| Command | Does | Exit code |
+| --- | --- | --- |
+| `gitboard` or `gitboard serve [--port N] [--open]` | Starts the board. Keeps running until stopped. | 1 if the port is taken |
+| `gitboard move <slug> <stage> [--from <stage>]` | Moves a feature. `<stage>` is an id (`2`), a folder (`2.planning`) or a name (`planning`). | 0 moved, 1 refused |
+| `gitboard move ... --dry-run` | Prints the move plan as JSON and changes nothing. | 0 can move, 1 blocked |
+| `gitboard lint` | Checks the lifecycle folder. | 0 clean, 1 problems |
+| `gitboard list [--json]` | Prints every feature by stage. | 0 |
+| `gitboard init` | Creates the lifecycle folder, templates and config. | 0 |
+| `gitboard --version`, `gitboard --help` | Prints the version or usage. | 0 |
 
-| Command | What it does |
-| --- | --- |
-| `gitboard` or `gitboard serve [--port N] [--open]` | Start the board. |
-| `gitboard move <slug> <stage> [--from <stage>] [--dry-run]` | Make the same move as the board. `<stage>` is an id, a folder or a name. `--dry-run` prints the plan. |
-| `gitboard lint` | Run the built-in checks. Exits 1 on a problem. |
-| `gitboard list [--json]` | Print the board. |
-| `gitboard init` | Create the lifecycle folder, templates and config. |
-| `gitboard --version`, `gitboard --help` | Version and usage. |
+## For coding agents
+
+- Move features only with `gitboard move`. Do not `mv` or `git mv` stage folders yourself, or links will break.
+- Run `gitboard move <slug> <stage> --dry-run` first. In the JSON, `blocked` is `null` when the move can run; otherwise it holds the reason.
+- Commit your work before a move. A move refuses uncommitted changes to the feature.
+- Read state with `gitboard list --json`. It returns `cards` (each with `slug`, `stage`, `title`, `done`, `total`, `deps`, `decisions`), plus `stages` and `mainBranch`.
+- Mark progress by changing `- [ ]` to `- [x]` in the feature's files and committing.
+- Run `gitboard lint` before you commit changes under `roadmap/`.
+- `gitboard serve` does not exit. Run it in the background or in a separate terminal.
 
 ## Configuration
 
-Every key in `gitboard.config.json` is optional. The keys, their defaults and example hooks are in [configuration](docs/configuration.md).
+Every key in `gitboard.config.json` is optional. This example sets the main branch and appends a changelog line when a feature reaches Complete:
 
-## Local only
+```json
+{
+  "mainBranch": "trunk",
+  "hooks": { "onEnter": { "5": ["node scripts/changelog.mjs {slug}"] } }
+}
+```
 
-The board listens on `127.0.0.1` and `::1`, checks the Host and Origin headers, and makes no network call except `gh` for pull requests. Hooks and lint commands are code you wrote, and they run on your machine. See [SECURITY.md](SECURITY.md).
+All keys, defaults and hook recipes are in [docs/configuration.md](docs/configuration.md).
 
-## Documents
+## Security
 
-- [Concepts](docs/concepts.md): the lifecycle, features, ticks, phases, relations, the git pipeline, moves.
-- [Configuration](docs/configuration.md): every config key and hook recipes.
-- [Specification](docs/spec.md): the requirements Gitboard Canvas is built against.
-- [Contributing](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), [Changelog](CHANGELOG.md), [Third-party notices](THIRD_PARTY_NOTICES.md).
+The board listens on `127.0.0.1` and `::1` only. It checks the Host header on every request and the Origin header on every write. It makes no network calls except `gh` for pull requests. Hook and lint commands come from your own config and run on your machine. See [SECURITY.md](SECURITY.md).
+
+## Documentation
+
+- [Concepts](docs/concepts.md): the lifecycle, phases, relations, the git pipeline and moves in detail
+- [Configuration](docs/configuration.md): every config key and hook recipes
+- [Specification](docs/spec.md): the requirements the code is built against
+- [Changelog](CHANGELOG.md) and [third-party notices](THIRD_PARTY_NOTICES.md)
+
+## Contributing
+
+```sh
+npm install
+npm test           # vitest
+npm run typecheck
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Licence
 
