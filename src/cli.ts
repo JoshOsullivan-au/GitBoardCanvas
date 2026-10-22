@@ -156,10 +156,20 @@ async function main(argv: string[]): Promise<number> {
 	return 1;
 }
 
-main(process.argv.slice(2)).then(
-	(code) => process.exit(code),
-	(error: unknown) => {
-		process.stderr.write(`gitboard: ${error instanceof Error ? error.message : String(error)}\n`);
-		process.exit(1);
-	},
-);
+/**
+ * Exit once stdout and stderr have handed everything to the OS. Writes to a pipe are asynchronous, so a bare
+ * `process.exit` cuts output such as `list --json` off at the pipe's 64 KiB buffer.
+ */
+function exitAfterFlush(code: number): void {
+	let pending = 2;
+	const done = () => {
+		if (--pending === 0) process.exit(code);
+	};
+	process.stdout.write("", done);
+	process.stderr.write("", done);
+}
+
+main(process.argv.slice(2)).then(exitAfterFlush, (error: unknown) => {
+	process.stderr.write(`gitboard: ${error instanceof Error ? error.message : String(error)}\n`);
+	exitAfterFlush(1);
+});

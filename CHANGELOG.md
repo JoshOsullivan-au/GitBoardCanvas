@@ -2,6 +2,12 @@
 
 Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
+## 0.1.2 (22/10/2026)
+
+### Fixed
+
+- `gitboard list --json` piped into another command (`| jq`, `| node`, `| wc -c`) no longer stops at 64 KiB. The CLI now waits for stdout and stderr to finish writing before it exits, so large boards come through whole.
+
 ## 0.1.1 (22/10/2026)
 
 ### Fixed
