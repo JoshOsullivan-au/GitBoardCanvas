@@ -4,7 +4,9 @@ Why: a team whose main branch only takes changes through pull requests cannot la
 
 Plan: [`git-github-workflow/README.md`](./git-github-workflow/README.md) holds the order, rules and open decisions.
 
-Builds on `v0-1-release`. Replaces `github-pr-checks`, which becomes phase 01. Ships as 0.2.0.
+Builds on `v0-1-release`. Ships as 0.2.0.
+
+Phase 01 replaces `github-pr-checks`.
 
 ## Build list
 
