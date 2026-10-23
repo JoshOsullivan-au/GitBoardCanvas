@@ -86,7 +86,7 @@ Each card shows the work in flight for its feature, per branch:
 | WIP | Unstaged or untracked files in any worktree (`git status --porcelain -z`). |
 | Staged | Files in a worktree's index. |
 | Committed | Files on a branch and not on the main branch (`git log main..branch`). |
-| PR | Open pull requests through `gh pr list`, when `gh` is installed and signed in. |
+| PR | Open pull requests through `gh pr list`, and their checks, review and conflicts through a read-only `gh api graphql` query, when `gh` is installed and signed in. |
 | Landed | The last commit on the main branch that touched the feature. |
 
 A change counts for a feature when it is under the feature's lifecycle path, when the branch name contains the feature's slug, or when the file is a code path the feature's markdown names (exact path, or a folder ending in `/`). A code path named by more than four features is too generic and is ignored.

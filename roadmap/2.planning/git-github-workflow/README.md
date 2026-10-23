@@ -105,7 +105,7 @@ None.
 
 | Phase | State |
 | --- | --- |
-| 01 | Planned |
+| 01 | Done |
 | 02 | Planned |
 | 03 | Planned |
 | 04 | Planned |

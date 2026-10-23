@@ -15,6 +15,12 @@ export type Phase = {
 	total: number;
 };
 
+/** A pull request's checks rolled up to one state; null when it has no checks. */
+export type PrChecks = "pass" | "fail" | "pending" | null;
+
+/** GitHub's review decision; null when the repo asks for no review. */
+export type PrReview = "approved" | "changes" | "required" | null;
+
 /** What one feature has in flight on one branch. File lists are capped; counts are whole. */
 export type CardGit = {
 	branch: string;
@@ -22,7 +28,7 @@ export type CardGit = {
 	staged: number;
 	committed: number;
 	commits: number;
-	pr: { number: number; url: string; draft: boolean; title: string } | null;
+	pr: { number: number; url: string; draft: boolean; title: string; checks: PrChecks; review: PrReview; conflicts: boolean } | null;
 	files: { wip: string[]; staged: string[]; committed: string[] };
 	/** Why the branch counts for this feature. */
 	via: "roadmap" | "branch" | "code";

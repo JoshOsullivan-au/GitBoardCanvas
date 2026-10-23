@@ -211,6 +211,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 .card.lock .tx span { color: var(--arrow-soft); }
 .card.wait .st::before { content: ""; width: 12px; height: 12px; border: 2px solid var(--arrow-soft); border-right-color: transparent; border-radius: 999px; }
 .card .chips { position: absolute; right: 10px; top: -9px; z-index: 2; display: flex; gap: 4px; pointer-events: none; }
+/* Roadmap cards: the git chip sits rightmost and always shows; the date chip drops out when the card is too narrow for both. */
+.card .chips.fit { left: 10px; height: 16px; overflow: hidden; flex-flow: row-reverse wrap; }
+.card .chips.fit .dt { order: 1; }
 .card .av-b { display: inline-flex; white-space: nowrap; align-items: center; gap: 2px; font-size: 10px; line-height: 12px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
 .card .av-b .ph { font-size: 10px; }
 .card .av-b.dt { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
@@ -218,6 +221,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 .gs-staged { --gs: var(--tone-att); }
 .gs-committed { --gs: var(--st-commit); }
 .gs-pr { --gs: var(--st-pr); }
+.gs-attn { --gs: var(--tone-att); }
 .card .av-b[class*="gs-"] { color: var(--gs); border-color: color-mix(in oklch, var(--gs) 35%, var(--border)); font-weight: 500; }
 .pop-wrap { position: relative; }
 .fcount { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); font-size: 11px; display: inline-grid; place-items: center; }
@@ -326,6 +330,9 @@ dialog.wide .dlg { max-height: min(86vh, 960px); overflow: auto; }
 .gbh b { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gbh .via { color: var(--muted-foreground); font-size: 12px; white-space: nowrap; }
 .gbh a { margin-left: auto; font-size: 12px; color: var(--st-pr); white-space: nowrap; }
+.prst { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px; }
+.prst li { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; line-height: 14px; padding: 1px 7px; border-radius: 999px; border: 1px solid color-mix(in oklch, var(--gs) 35%, var(--border)); color: var(--gs); font-weight: 500; }
+.prst .ph { font-size: 11px; }
 .track { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .track li { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted-foreground); position: relative; }
 .track li + li::before { content: ""; position: absolute; top: 11px; right: calc(50% + 12px); width: calc(100% - 24px); border-top: 1.5px dashed var(--border); }
@@ -685,12 +692,30 @@ const GIT_STEPS = [
   { k: "pr", name: "PR", icon: "GitPullRequest" },
 ];
 const GIT_RANK = { landed: 0, wip: 1, staged: 2, committed: 3, pr: 4 };
+/* ---- pull request status: the chip shows the worst state, the details show each one ---- */
+const PR_STATES = [
+  { k: "conflicts", text: "Conflicts", chip: "Conflicts", attn: true, test: (p) => p.conflicts },
+  { k: "failing", text: "Checks failing", chip: "Failing", attn: true, test: (p) => p.checks === "fail" },
+  { k: "changes", text: "Changes requested", chip: "Changes", test: (p) => p.review === "changes" },
+  { k: "pending", text: "Checks pending", chip: "Pending", test: (p) => p.checks === "pending" },
+  { k: "review", text: "Review required", chip: "Review", test: (p) => p.review === "required" && !p.draft },
+  { k: "passing", text: "Checks passing", chip: "Passing", test: (p) => p.checks === "pass" },
+];
+const PR_DETAIL = [
+  ...PR_STATES,
+  { k: "approved", text: "Approved", test: (p) => p.review === "approved" },
+  { k: "draft", text: "Draft", test: (p) => p.draft },
+];
+const prStates = (p) => PR_DETAIL.filter((s) => s.test(p));
+const prWorst = (prs) => PR_STATES.find((s) => prs.some(s.test)) ?? null;
+
 function gitSummary(c) {
   const t = { wip: 0, staged: 0, committed: 0, pr: 0, prs: [] };
   for (const g of c.git) {
     t.wip += g.wip; t.staged += g.staged; t.committed += g.committed;
     if (g.pr) { t.pr += 1; t.prs.push(g.pr); }
   }
+  t.worst = prWorst(t.prs);
   t.flight = t.wip + t.staged + t.committed;
   t.top = t.pr ? "pr" : t.committed ? "committed" : t.staged ? "staged" : t.wip ? "wip" : c.landed ? "landed" : null;
   t.rank = t.top ? GIT_RANK[t.top] : -1;
@@ -700,7 +725,13 @@ function gitBadge(c) {
   const t = gitSummary(c);
   if (!t.top || t.top === "landed") return "";
   const step = GIT_STEPS.find((x) => x.k === t.top);
-  const text = t.top === "pr" ? (t.prs.length === 1 ? `PR #${t.prs[0].number}` : `${t.prs.length} PRs`) : `${t[t.top]} ${step.name === "WIP" ? "WIP" : step.name.toLowerCase()}`;
+  if (t.top === "pr") {
+    const w = t.worst;
+    const text = `${t.prs.length === 1 ? `PR #${t.prs[0].number}` : `${t.prs.length} PRs`}${w ? ` · ${w.chip}` : ""}`;
+    const title = [c.git.map((g) => g.branch).join(", "), w?.text].filter(Boolean).join(": ");
+    return `<span class="av-b ${w?.attn ? "gs-attn" : "gs-pr"}" title="${esc(title)}">${w?.attn ? icon("Warning") : icon(step.icon)}${esc(text)}</span>`;
+  }
+  const text = `${t[t.top]} ${step.name === "WIP" ? "WIP" : step.name.toLowerCase()}`;
   return `<span class="av-b gs-${t.top}" title="${esc(c.git.map((g) => g.branch).join(", "))}">${icon(step.icon)}${esc(text)}</span>`;
 }
 
@@ -712,6 +743,8 @@ const FILTER_OPTIONS = {
     ["staged", "Staged", "Tray", (c) => gitSummary(c).staged > 0],
     ["committed", "Committed", "GitCommit", (c) => gitSummary(c).committed > 0],
     ["pr", "PR", "GitPullRequest", (c) => gitSummary(c).pr > 0],
+    ["failing", "Checks failing", "Warning", (c) => gitSummary(c).prs.some((p) => p.checks === "fail")],
+    ["review", "Needs review", "UserCircle", (c) => gitSummary(c).prs.some((p) => p.review === "required" && !p.draft)],
     ["flight", "In flight", "GitBranch", (c) => c.git.length > 0],
     ["still", "Nothing in flight", "GitMerge", (c) => c.git.length === 0],
   ],
@@ -785,12 +818,12 @@ function cardHtml(c) {
   const on = tr && (tr.id === c.id || tr.linkIds.includes(c.id));
   const dim = tr && !on;
   const g = gitSummary(c);
-  const gitWord = g.top && g.top !== "landed" ? `git: ${GIT_STEPS.filter((x) => (x.k === "pr" ? g.pr : g[x.k])).map((x) => (x.k === "pr" ? `${g.pr} PR` : `${g[x.k]} ${x.name}`)).join(", ")}` : "";
+  const gitWord = g.top && g.top !== "landed" ? `git: ${GIT_STEPS.filter((x) => (x.k === "pr" ? g.pr : g[x.k])).map((x) => (x.k === "pr" ? `${g.pr} PR${g.worst ? ` (${g.worst.text})` : ""}` : `${g[x.k]} ${x.name}`)).join(", ")}` : "";
   const extra = [c.phases ? plural(c.phases, "phase") : "", c.linkIds.length ? `${c.linkIds.length} linked` : ""];
   const sub = [...new Set([st.word, ...extra].filter(Boolean))].join(" · ");
   const label = [c.title, stageName(c.stage), c.group, sub, gitWord].filter(Boolean).join(", ");
   return `<div class="card lg lg-regular ${st.cls}${on ? " on" : ""}${dim ? " off" : ""}" data-card="${esc(c.id)}" role="button" tabindex="0" aria-roledescription="Draggable card" aria-label="${esc(label)}."${state.grab?.id === c.id ? " data-grabbed" : ""}${state.drag?.active && state.drag.id === c.id ? " data-dragging" : ""}>
-    <span class="chips">${c.createdAt ? `<span class="av-b dt" title="Created ${ddmmyyyy(c.createdAt)}">${icon("CalendarBlank")}${ddmmyyyy(c.createdAt)}</span>` : ""}${gitBadge(c)}</span><span class="tile">${icon(groupIcon(c.group))}</span><span class="tx"><b>${esc(c.title)}</b><span>${esc(sub)}</span></span><span class="st">${st.mark}</span></div>`;
+    <span class="chips fit">${c.createdAt ? `<span class="av-b dt" title="Created ${ddmmyyyy(c.createdAt)}">${icon("CalendarBlank")}${ddmmyyyy(c.createdAt)}</span>` : ""}${gitBadge(c)}</span><span class="tile">${icon(groupIcon(c.group))}</span><span class="tx"><b>${esc(c.title)}</b><span>${esc(sub)}</span></span><span class="st">${st.mark}</span></div>`;
 }
 function groupHtml(stage, group) {
   const list = cellCards(group, stage.id);
@@ -1245,6 +1278,7 @@ function gitHtml(c) {
     const files = [["WIP", g.files.wip, g.wip], ["Staged", g.files.staged, g.staged], ["Committed", g.files.committed, g.committed]].filter(([, , n]) => n);
     return `<li class="gitb">
       <div class="gbh">${icon("GitBranch")}<b>${esc(g.branch)}</b><span class="via">via ${VIA[g.via]}</span>${g.pr ? `<a href="${esc(g.pr.url)}" target="_blank" rel="noopener noreferrer">PR #${g.pr.number}${g.pr.draft ? " (draft)" : ""}</a>` : ""}</div>
+      ${g.pr && prStates(g.pr).length ? `<ul class="prst" aria-label="Pull request status">${prStates(g.pr).map((s) => `<li class="${s.attn ? "gs-attn" : "gs-pr"}">${s.attn ? icon("Warning") : ""}${esc(s.text)}</li>`).join("")}</ul>` : ""}
       <ol class="track">${GIT_STEPS.map((x) => `<li class="${counts[x.k] ? `on gs-${x.k}` : ""}"><span class="dot">${icon(x.icon)}</span><span class="tn">${x.name}</span><b>${x.k === "pr" ? (g.pr ? `#${g.pr.number}` : "") : counts[x.k] || ""}</b></li>`).join("")}<li class="${""}"><span class="dot">${icon("GitMerge")}</span><span class="tn">Landed</span><b></b></li></ol>
       ${g.commits ? `<div class="gnote">${plural(g.commits, "commit")} not on main</div>` : ""}
       ${files.length ? `<details class="gfiles"><summary>${icon("CaretRight")}Files</summary>${files.map(([k, list, n]) => `<div class="gfk">${k}</div><ul>${list.map((f) => `<li>${esc(f)}</li>`).join("")}${n > list.length ? `<li class="more">${n - list.length} more</li>` : ""}</ul>`).join("")}</details>` : ""}

@@ -17,6 +17,56 @@ describe("board page", () => {
 	});
 });
 
+describe("pull request status", () => {
+	type State = { k: string; text: string; chip?: string; attn?: boolean };
+	type Pr = { draft: boolean; checks: string | null; review: string | null; conflicts: boolean };
+	const start = html.indexOf("/* ---- pull request status");
+	const block = html.slice(start, html.indexOf("function gitSummary", start));
+	const { prStates, prWorst } = new Function(`${block}; return { prStates, prWorst };`)() as {
+		prStates: (p: Pr) => State[];
+		prWorst: (prs: Pr[]) => State | null;
+	};
+	const pr = (over: Partial<Pr> = {}): Pr => ({ draft: false, checks: null, review: null, conflicts: false, ...over });
+
+	it("puts the worst state on the chip: conflicts, failing, changes, pending, review, passing", () => {
+		const all = pr({ conflicts: true, checks: "fail", review: "changes" });
+		expect(prWorst([all])).toMatchObject({ text: "Conflicts", attn: true });
+		expect(prWorst([pr({ checks: "fail", review: "changes" })])).toMatchObject({ text: "Checks failing", chip: "Failing", attn: true });
+		expect(prWorst([pr({ checks: "pending", review: "changes" })])).toMatchObject({ text: "Changes requested" });
+		expect(prWorst([pr({ checks: "pending", review: "required" })])).toMatchObject({ text: "Checks pending" });
+		expect(prWorst([pr({ checks: "pass", review: "required" })])).toMatchObject({ text: "Review required" });
+		expect(prWorst([pr({ checks: "pass", review: "approved" })])).toMatchObject({ text: "Checks passing" });
+		expect(prWorst([pr({ checks: "pass" }), pr({ checks: "fail" })])).toMatchObject({ text: "Checks failing" });
+		expect(prWorst([pr()])).toBeNull();
+		expect(prWorst([])).toBeNull();
+		for (const s of [prWorst([pr({ checks: "pending" })]), prWorst([pr({ review: "changes" })])]) expect(s?.attn).toBeFalsy();
+	});
+
+	it("lists each state in the details, and a draft does not ask for review", () => {
+		expect(prStates(pr({ conflicts: true, checks: "fail", review: "approved", draft: true })).map((s) => s.text)).toEqual([
+			"Conflicts",
+			"Checks failing",
+			"Approved",
+			"Draft",
+		]);
+		expect(prStates(pr({ review: "required", draft: true })).map((s) => s.text)).toEqual(["Draft"]);
+		expect(prStates(pr({ review: "required" })).map((s) => s.text)).toEqual(["Review required"]);
+		expect(prStates(pr()).map((s) => s.text)).toEqual([]);
+	});
+
+	it("offers the Checks failing and Needs review filters, and marks attention states with the attention tone", () => {
+		expect(html).toContain('["failing", "Checks failing", "Warning", (c) => gitSummary(c).prs.some((p) => p.checks === "fail")]');
+		expect(html).toContain('["review", "Needs review", "UserCircle", (c) => gitSummary(c).prs.some((p) => p.review === "required" && !p.draft)]');
+		expect(html).toContain(".gs-attn { --gs: var(--tone-att); }");
+	});
+
+	it("keeps the git chip whole on a narrow card, dropping the date chip instead of pushing it off the card", () => {
+		expect(html).toContain(".card .chips.fit { left: 10px; height: 16px; overflow: hidden; flex-flow: row-reverse wrap; }");
+		expect(html).toContain(".card .chips.fit .dt { order: 1; }");
+		expect(html).toContain('<span class="chips fit">${c.createdAt ?');
+	});
+});
+
 describe("architecture tab", () => {
 	const icons = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, "../src/ui/icons.json"), "utf8")) as Record<string, unknown>;
 

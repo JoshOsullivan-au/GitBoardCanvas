@@ -9,7 +9,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { DEFAULT_ARCHITECTURE } from "../src/architecture/config.js";
 import { DEFAULT_CONFIG } from "../src/config.js";
+import { statusSettled } from "../src/pipeline.js";
 import { clientMessage, createBoardServer } from "../src/server.js";
+import { fakeGh, prRow } from "./fake-gh.js";
 
 let dir: string;
 let server: http.Server;
@@ -174,6 +176,103 @@ describe("architecture", () => {
 		} finally {
 			arch.close();
 			archServer.close();
+		}
+	});
+});
+
+describe("pull request status", () => {
+	/** A one-feature repo served with GitHub on; returns the board JSON. */
+	async function boardWithGh(): Promise<{ github: boolean | null; cards: { slug: string; git: { branch: string; pr: unknown }[] }[] }> {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "gitboard-server-gh-"));
+		const g = (...args: string[]) => execFileSync("git", args, { cwd: root, stdio: "ignore" });
+		g("init", "-q", "-b", "main");
+		fs.mkdirSync(path.join(root, "roadmap/3.open"), { recursive: true });
+		fs.writeFileSync(path.join(root, "roadmap/3.open/checkout-redesign.md"), "# Checkout redesign\n\n- [ ] one\n");
+		fs.writeFileSync(path.join(root, "roadmap/3.open/search-filters.md"), "# Search filters\n\n- [ ] one\n");
+		g("add", "-A");
+		g("-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "init");
+		let handle: http.RequestListener = (_req, res) => res.end();
+		const srv = http.createServer((req, res) => handle(req, res));
+		await new Promise<void>((resolve) => srv.listen(0, "127.0.0.1", resolve));
+		const ghPort = (srv.address() as { port: number }).port;
+		const board = createBoardServer({ root, config: { ...DEFAULT_CONFIG, github: true }, port: ghPort, refreshMs: 0, log: () => {} });
+		handle = board.handle;
+		await board.refresh();
+		// Status is read in the background; the next refresh merges it.
+		await statusSettled(root);
+		await board.refresh();
+		try {
+			const body = await new Promise<string>((resolve, reject) => {
+				http
+					.get({ host: "127.0.0.1", port: ghPort, path: "/api/board", headers: { host: `127.0.0.1:${ghPort}` } }, (res) => {
+						let b = "";
+						res.on("data", (c) => (b += c));
+						res.on("end", () => resolve(b));
+					})
+					.on("error", reject);
+			});
+			return JSON.parse(body);
+		} finally {
+			board.close();
+			srv.close();
+			fs.rmSync(root, { recursive: true, force: true });
+		}
+	}
+
+	it("serves checks, review and conflicts on the card's pull request", async () => {
+		const gh = fakeGh();
+		try {
+			gh.prs([
+				prRow({
+					number: 4,
+					headRefName: "feature/checkout-redesign",
+					checkState: "FAILURE",
+					reviewDecision: "REVIEW_REQUIRED",
+					mergeable: "CONFLICTING",
+				}),
+				prRow({
+					number: 5,
+					url: "https://github.example/o/r/pull/5",
+					headRefName: "feature/search-filters",
+					isDraft: true,
+					checkState: "PENDING",
+					reviewDecision: "APPROVED",
+					mergeable: "UNKNOWN",
+				}),
+			]);
+			const board = await boardWithGh();
+			expect(board.github).toBe(true);
+			const card = board.cards.find((c) => c.slug === "checkout-redesign");
+			expect(card?.git).toEqual([
+				expect.objectContaining({
+					branch: "feature/checkout-redesign",
+					pr: { number: 4, url: "https://github.example/o/r/pull/1", draft: false, title: "A change", checks: "fail", review: "required", conflicts: true },
+				}),
+			]);
+			expect(board.cards.find((c) => c.slug === "search-filters")?.git[0].pr).toEqual({
+				number: 5,
+				url: "https://github.example/o/r/pull/5",
+				draft: true,
+				title: "A change",
+				checks: "pending",
+				review: "approved",
+				conflicts: false,
+			});
+		} finally {
+			gh.restore();
+		}
+	});
+
+	it("says Missing GitHub, not no pull requests, when gh fails", async () => {
+		const gh = fakeGh();
+		try {
+			gh.fail(true);
+			const board = await boardWithGh();
+			expect(board.github).toBe(false);
+			for (const c of board.cards) expect(c.git).toEqual([]);
+			expect(gh.calls().length).toBeGreaterThan(0);
+		} finally {
+			gh.restore();
 		}
 	});
 });
