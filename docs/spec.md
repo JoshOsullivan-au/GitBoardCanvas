@@ -143,7 +143,7 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 - R20. Filter by group, relation (blocked, gated, linked), git step and text; order by stage order, progress, last landed, created or title.
 - R21. Light and dark themes from the system setting. System fonts; no web font or external request.
 - R22. Live: moves made in a terminal, an editor or another worktree appear within about two seconds of landing.
-- R23. With an `architecture` block, header tabs (Roadmap first and the default, the last choice remembered per browser) switch to the Architecture tab: request, pages, database, cache and providers columns at fixed widths, each page's warm server time against the budget, hover to trace its calls with the board's link routing, click for a read path with resizable name and time columns.
+- R23 (ADR 0001). With an `architecture` block, header tabs (Roadmap first and the default, the last choice remembered per browser) switch to the Architecture tab: request, pages, database, cache and providers columns at fixed widths, each page's warm server time against the budget, hover to trace its calls with the board's link routing, click for a read path with resizable name and time columns.
 
 ### 2.5 Configuration
 

@@ -134,7 +134,7 @@ The Architecture tab sits beside the Roadmap board. It shows every page your app
 | --- | --- | --- |
 | `site` | `""` | The production origin, such as `https://example.com`. When set, a page Tempo has no request for gets one `HEAD` request to see whether the host served it from its cache. |
 | `budgetMs` | `500` | Server time a page should come in under. A card over it turns amber, over twice it red. |
-| `appDir` | `"app"` | The app router folder the pages are read from. Route groups, parallel slots and `_` folders are dropped. |
+| `appDir` | `"app"` | The app router folder the pages are read from. Route groups and parallel slots are dropped from the route; `_` folders and intercepting routes (`(.)x`, `(..)x`, `(...)x`) are skipped. |
 | `exclude` | `[]` | Regular expressions for routes production does not serve. |
 | `routesCommand` | `null` | A command run at the repo root that reads every page route as a JSON array on stdin and prints the live ones. When set it replaces `exclude`, so your app's own rule decides what is live. |
 | `areas` | `[]` | Groups on the Pages column, `{ "name", "match", "icon" }`. `match` is tested against the route without regard to case; the first match wins. `icon` takes the group icon names above. |

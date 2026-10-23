@@ -1445,6 +1445,8 @@ const epKind = (e) => (e.target === "rpc" ? "RPC" : e.target === "table" ? "Tabl
 const epIcon = (endpoint, target) => (ACCESS.has(endpoint) ? "ShieldCheck" : TARGET_ICON[target]);
 
 let map = null;
+/* Why the tab has nothing to draw: the server's reason (no measure yet, a file that is not a measure), or no answer. */
+let problem = null;
 let nodes = [];            // one per route sample
 let endpoints = new Map(); // endpoint -> { endpoint, target, routes:Set, shell, calls, totalMs }
 const state = { q: "", order: "slow", trace: null, collapsed: new Set() };
@@ -1549,7 +1551,7 @@ function epGroups() {
 /* ---- board ---- */
 const board = document.getElementById("arch");
 function render() {
-  if (!map) { board.innerHTML = `<p class="gnote">No measure yet: run gitboard measure --from &lt;time&gt; --to &lt;time&gt;.</p>`; return; }
+  if (problem || !map) { board.innerHTML = `<p class="gnote">${esc(problem ?? "No measure yet: run gitboard measure --from <iso>.")}</p>`; return; }
   const when = document.getElementById("archWhen");
   when.textContent = `Tempo ${ddmmyyyy(map.window.from)} ${hhmm(map.window.from)}–${hhmm(map.window.to)}`;
   when.title = `${map.deployment ?? "Deployment Missing"} · warm request of two loads per route`;
@@ -1762,7 +1764,11 @@ addEventListener("resize", links);
 const tabs = document.querySelector(".tabs");
 async function show() {
   const res = await fetch("/api/architecture", { cache: "no-store" }).catch(() => null);
-  if (res?.ok) build(await res.json());
+  const body = await res?.json().catch(() => null);
+  problem = res?.ok ? null : body?.error ?? "The board server did not answer.";
+  if (!problem) {
+    try { build(body); } catch { map = null; problem = "The measure file is not one this version reads: run gitboard measure again."; }
+  }
   render();
 }
 function setTab(name) {

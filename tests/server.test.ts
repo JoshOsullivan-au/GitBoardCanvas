@@ -153,11 +153,17 @@ describe("architecture", () => {
 			expect(none.status).toBe(404);
 			expect(JSON.parse(none.body).error).toBe("No measure yet: run gitboard measure --from <iso>.");
 			fs.mkdirSync(path.join(dir, "maps"), { recursive: true });
-			fs.writeFileSync(path.join(dir, "maps/live.json"), JSON.stringify({ routes: [{ route: "/" }] }));
+			fs.writeFileSync(path.join(dir, "maps/live.json"), JSON.stringify({ areas: [], routes: [{ route: "/" }] }));
 			const ok = await get("/api/architecture");
 			expect(ok.status).toBe(200);
 			expect(JSON.parse(ok.body).routes[0].route).toBe("/");
 			expect((await get("/api/architecture", `evil.example:${archPort}`)).status).toBe(403);
+			fs.writeFileSync(path.join(dir, "maps/live.json"), "{ not json");
+			const bad = await get("/api/architecture");
+			expect(bad.status).toBe(500);
+			expect(JSON.parse(bad.body).error).toBe("maps/live.json is not a measure: run gitboard measure again.");
+			fs.writeFileSync(path.join(dir, "maps/live.json"), JSON.stringify({ routes: "x" }));
+			expect((await get("/api/architecture")).status).toBe(500);
 		} finally {
 			arch.close();
 			archServer.close();

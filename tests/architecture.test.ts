@@ -70,6 +70,11 @@ describe("live routes", () => {
 		expect(pageRoutes(root, "app").map((r) => r.route)).toEqual(["/", "/day/[level]/[id]", "/forms/open", "/home", "/sign-in", "/suites/finance"]);
 	});
 
+	it("skips intercepting routes, which render another route's URL", () => {
+		const root = tree({ "app/feed/page.tsx": "", "app/feed/(.)photo/[id]/page.tsx": "", "app/@modal/(..)photo/[id]/page.tsx": "", "app/(...)login/page.tsx": "", "app/photo/[id]/page.tsx": "" });
+		expect(pageRoutes(root, "app").map((r) => r.route)).toEqual(["/feed", "/photo/[id]"]);
+	});
+
 	it("drops excluded routes and sorts the rest into areas", () => {
 		const root = tree(PAGES);
 		const c = architectureConfig({ exclude: ["^/suites/finance(/|$)", "^/forms/"], areas: [{ name: "Day", match: "^/day" }, { name: "Home", match: "^/$|^/home" }], defaultArea: "Public" });

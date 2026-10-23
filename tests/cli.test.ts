@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -127,5 +128,40 @@ describe("cli measure", () => {
 		expect(slash).toMatchObject({ avgMs: 290, count: 2 });
 		expect(slash.samples[0]).toMatchObject({ sample: "/", status: 200, waves: 1, databaseCalls: 1, warm: { traceId: "t2", serverMs: 180 }, cold: { traceId: "t1", serverMs: 400 } });
 		expect(slash.samples[0].calls).toEqual([{ endpoint: "rpc permit", target: "rpc", method: "POST", startMs: 10, durMs: 20, wave: 1, origin: "shell" }]);
+	});
+});
+
+describe("cli measure, a page with no request", () => {
+	it("asks the site whether its cache served the page", async () => {
+		for (const page of ["app/page.tsx", "app/cached/page.tsx", "app/moved/page.tsx"]) {
+			fs.mkdirSync(path.dirname(path.join(root, page)), { recursive: true });
+			fs.writeFileSync(path.join(root, page), "");
+		}
+		fakeGcx(path.join(root, ".bin"));
+		const site = http.createServer((req, res) => {
+			if (req.url === "/cached") res.writeHead(200, { "x-vercel-cache": "HIT" }).end();
+			else res.writeHead(307, { location: "/sign-in" }).end();
+		});
+		await new Promise<void>((resolve) => site.listen(0, "127.0.0.1", resolve));
+		const { port } = site.address() as { port: number };
+		fs.writeFileSync(path.join(root, "gitboard.config.json"), JSON.stringify({ architecture: { site: `http://127.0.0.1:${port}`, tempo: { datasource: "d", service: "web" } } }));
+		try {
+			const code = await new Promise<number | null>((resolve) => {
+				const child = spawn(process.execPath, [CLI, "measure", "--from", "2026-10-23T00:00:00Z", "--to", "2026-10-23T01:00:00Z"], {
+					cwd: root,
+					env: { ...process.env, PATH: `${path.join(root, ".bin")}${path.delimiter}${process.env.PATH}` },
+					stdio: "ignore",
+				});
+				child.on("exit", resolve);
+			});
+			expect(code).toBe(0);
+		} finally {
+			site.close();
+		}
+		const map = JSON.parse(fs.readFileSync(path.join(root, ".gitboard/architecture.json"), "utf8")) as { routes: { route: string; noRequest: string | null }[] };
+		const reason = (route: string) => map.routes.find((r) => r.route === route)?.noRequest;
+		expect(reason("/cached")).toBe("Served from the host's cache: no function ran, so Tempo has no server span");
+		expect(reason("/moved")).toBe("Answers 307 before the page runs");
+		expect(reason("/")).toBeNull();
 	});
 });

@@ -8,7 +8,10 @@ import type { ArchitectureConfig } from "./config.js";
 
 export type LiveRoute = { route: string; area: string; file: string };
 
-/** Every `page.*` under the app folder, as the route Next serves it: route groups and parallel slots dropped. */
+/**
+ * Every `page.*` under the app folder, as the route Next serves it: route groups and parallel slots dropped, private
+ * folders and intercepting routes (`(.)x`, `(..)x`, `(...)x`, which render another route's URL) skipped.
+ */
 export function pageRoutes(root: string, appDir: string): { route: string; file: string }[] {
 	const app = path.join(root, appDir);
 	const out: { route: string; file: string }[] = [];
@@ -16,7 +19,7 @@ export function pageRoutes(root: string, appDir: string): { route: string; file:
 		for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
 			const full = path.join(dir, entry.name);
 			if (entry.isDirectory()) {
-				if (!entry.name.startsWith("_") && !entry.name.startsWith(".")) walk(full);
+				if (!entry.name.startsWith("_") && !entry.name.startsWith(".") && !entry.name.startsWith("(.")) walk(full);
 			} else if (/^page\.(t|j)sx?$/.test(entry.name)) {
 				const segments = path
 					.relative(app, dir)

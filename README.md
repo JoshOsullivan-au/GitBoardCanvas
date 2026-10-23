@@ -176,6 +176,7 @@ The board listens on `127.0.0.1` and `::1` only. It checks the Host header on ev
 - [Concepts](docs/concepts.md): the lifecycle, phases, relations, the git pipeline and moves in detail
 - [Configuration](docs/configuration.md): every config key and hook recipes
 - [Specification](docs/spec.md): the requirements the code is built against
+- [Architecture decisions](docs/adr/README.md): why the code is shaped the way it is
 - [Changelog](CHANGELOG.md) and [third-party notices](THIRD_PARTY_NOTICES.md)
 
 ## Contributing

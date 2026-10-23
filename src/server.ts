@@ -124,10 +124,13 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 		return { path: rel, html: markdown.parse(fs.readFileSync(real, "utf8")) as string };
 	}
 
-	/** The Architecture tab's data file, or why there is none. A path that resolves outside the repo counts as none. */
-	function architecture(): { body: Buffer } | { error: string } {
-		if (!config.architecture) return { error: "No architecture block in gitboard.config.json." };
-		const none = { error: "No measure yet: run gitboard measure --from <iso>." };
+	/**
+	 * The Architecture tab's data file, or why there is none (404) or why it cannot be shown (500). A path that resolves
+	 * outside the repo counts as none.
+	 */
+	function architecture(): { body: string } | { status: 404 | 500; error: string } {
+		if (!config.architecture) return { status: 404, error: "No architecture block in gitboard.config.json." };
+		const none = { status: 404 as const, error: "No measure yet: run gitboard measure --from <iso>." };
 		let real: string;
 		try {
 			real = fs.realpathSync(path.join(root, config.architecture.data));
@@ -135,7 +138,14 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 			return none;
 		}
 		if (!real.startsWith(fs.realpathSync(root) + path.sep)) return none;
-		return { body: fs.readFileSync(real) };
+		const body = fs.readFileSync(real, "utf8");
+		try {
+			const map = JSON.parse(body) as Record<string, unknown>;
+			if (Array.isArray(map.routes) && Array.isArray(map.areas)) return { body };
+		} catch {
+			// Reported below with the wrong shape.
+		}
+		return { status: 500, error: `${config.architecture.data} is not a measure: run gitboard measure again.` };
 	}
 
 	function moveInput(body: unknown): MoveInput | null {
@@ -161,7 +171,7 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 			}
 			if (req.method === "GET" && url.pathname === "/api/architecture") {
 				const a = architecture();
-				return "body" in a ? send(res, 200, a.body.toString("utf8")) : send(res, 404, a);
+				return "body" in a ? send(res, 200, a.body) : send(res, a.status, { error: a.error });
 			}
 			if (req.method === "GET" && url.pathname === "/api/version") {
 				return send(res, 200, { version: `${boardVersion(root, config.roadmapDir, config.mainBranch)}.${pipelineHash}` });
