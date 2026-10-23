@@ -84,7 +84,7 @@ Each card shows the work in flight for its feature, per branch.
 | WIP | Unstaged or untracked files in any worktree. |
 | Staged | Files in a worktree's index. |
 | Committed | Files on a branch that are not on the main branch. |
-| PR | Open pull requests, read with `gh pr list` when `gh` is installed and signed in. |
+| PR | Open pull requests, read with `gh pr list` when `gh` is installed and signed in, with their checks, review and conflicts from a read-only `gh api graphql` query. |
 | Landed | The last commit on the main branch that touched the feature. |
 
 A change counts for a feature when it is under the feature's folder, when the branch name contains the feature's slug, or when the file is a code path the feature's markdown names. A path named by more than four features is too generic and is ignored. `codeRoots` in the config limits which top-level folders are searched.

@@ -5,12 +5,83 @@ import { promisify } from "node:util";
 
 import type { GitBoardConfig } from "./config.js";
 import { GIT_ENV, git as gitSync, listWorktrees } from "./git.js";
-import type { CardGit } from "./types.js";
+import type { CardGit, PrChecks, PrReview } from "./types.js";
 
 const run = promisify(execFile);
 
 /** Where work on a branch stands: edited, staged, committed but not on main, in an open pull request. */
-export type PullRequest = { number: number; title: string; url: string; draft: boolean; branch: string; files: string[] };
+export type PullRequest = {
+	number: number;
+	title: string;
+	url: string;
+	draft: boolean;
+	branch: string;
+	files: string[];
+	checks: PrChecks;
+	review: PrReview;
+	conflicts: boolean;
+};
+
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
+
+const CHECKS = new Map<string, PrChecks>([
+	["SUCCESS", "pass"],
+	["FAILURE", "fail"],
+	["ERROR", "fail"],
+	["PENDING", "pending"],
+	["EXPECTED", "pending"],
+]);
+
+/**
+ * GitHub's own rollup of a pull request's checks (`statusCheckRollup.state` on its head commit), the state behind the
+ * tick or cross on github.com: it counts only the latest run of each check. No checks is null.
+ */
+export function checksState(state: string | null | undefined): PrChecks {
+	return CHECKS.get(str(state)) ?? null;
+}
+
+const REVIEW = new Map<string, PrReview>([
+	["APPROVED", "approved"],
+	["CHANGES_REQUESTED", "changes"],
+	["REVIEW_REQUIRED", "required"],
+]);
+
+/** GitHub's review decision. It is only set when branch protection asks for reviews; otherwise it is null. */
+export function reviewState(decision: string | null | undefined): PrReview {
+	return REVIEW.get(str(decision)) ?? null;
+}
+
+/**
+ * Checks, review and conflicts for the newest 100 open pull requests, in one GraphQL read. It asks for the rollup's
+ * state, not each check: per-check detail for 100 pull requests times out on big repos (HTTP 502 or 504). The
+ * `contexts(first: 1)` beside `state` is load-bearing: on a commit with over about 100 checks, GitHub answers `state`
+ * alone with SUCCESS even when checks failed, and with the right state once `contexts` is asked for.
+ */
+export const PR_STATUS_QUERY =
+	"query($owner: String!, $repo: String!) { repository(owner: $owner, name: $repo) { pullRequests(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: DESC}) { nodes { number reviewDecision mergeable commits(last: 1) { nodes { commit { statusCheckRollup { state contexts(first: 1) { totalCount } } } } } } } } }";
+
+type PrStatus = Pick<PullRequest, "checks" | "review" | "conflicts">;
+
+/** Parses the status query's answer; anything malformed is left out, never thrown on. */
+export function parsePrStatus(json: string): Map<number, PrStatus> {
+	const out = new Map<number, PrStatus>();
+	const nodes = (JSON.parse(json) as { data?: { repository?: { pullRequests?: { nodes?: unknown } } } })?.data?.repository?.pullRequests?.nodes;
+	if (!Array.isArray(nodes)) return out;
+	for (const n of nodes as {
+		number?: unknown;
+		reviewDecision?: unknown;
+		mergeable?: unknown;
+		commits?: { nodes?: { commit?: { statusCheckRollup?: { state?: unknown } | null } }[] };
+	}[]) {
+		if (typeof n?.number !== "number") continue;
+		out.set(n.number, {
+			checks: checksState(str(n.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state)),
+			review: reviewState(str(n.reviewDecision)),
+			conflicts: n.mergeable === "CONFLICTING",
+		});
+	}
+	return out;
+}
 
 export type BranchGit = {
 	branch: string;
@@ -54,18 +125,32 @@ export function parseStatus(z: string): { wip: string[]; staged: string[] } {
 
 const prCache = new Map<string, { at: number; prs: PullRequest[] | null }>();
 
-/** Open pull requests through the GitHub CLI, read only, cached for a minute per repo. */
+const NO_STATUS: PrStatus = { checks: null, review: null, conflicts: false };
+
+/**
+ * Open pull requests through the GitHub CLI, read only, cached for a minute per repo. The list and the status are two
+ * calls; when only the status call fails, the pull requests still show, without checks, review or conflicts.
+ */
 async function openPullRequests(root: string, now = Date.now()): Promise<PullRequest[] | null> {
 	const hit = prCache.get(root);
 	if (hit && now - hit.at < 60_000) return hit.prs;
+	const opts = { cwd: root, encoding: "utf8" as const, timeout: 20_000, maxBuffer: 16 * 1024 * 1024 };
+	// The status query runs beside the list and slows with it on big repos (7 to 11 s alone, past 20 s together), so
+	// it gets longer; the board refreshes in the background, so nothing waits on it.
+	const [list, status] = await Promise.allSettled([
+		run("gh", ["pr", "list", "--state", "open", "--limit", "100", "--json", "number,title,url,isDraft,headRefName,files"], opts),
+		run("gh", ["api", "graphql", "-F", "owner={owner}", "-F", "repo={repo}", "-f", `query=${PR_STATUS_QUERY}`], { ...opts, timeout: 30_000 }),
+	]);
 	let prs: PullRequest[] | null;
 	try {
-		const { stdout } = await run(
-			"gh",
-			["pr", "list", "--state", "open", "--limit", "100", "--json", "number,title,url,isDraft,headRefName,files"],
-			{ cwd: root, encoding: "utf8", timeout: 20_000, maxBuffer: 16 * 1024 * 1024 },
-		);
-		const rows = JSON.parse(stdout) as {
+		if (list.status === "rejected") throw list.reason;
+		let statuses = new Map<number, PrStatus>();
+		try {
+			if (status.status === "fulfilled") statuses = parsePrStatus(status.value.stdout);
+		} catch {
+			// Unreadable status: the pull requests still show.
+		}
+		const rows = JSON.parse(list.value.stdout) as {
 			number: number;
 			title: string;
 			url: string;
@@ -80,6 +165,7 @@ async function openPullRequests(root: string, now = Date.now()): Promise<PullReq
 			draft: r.isDraft,
 			branch: r.headRefName,
 			files: (r.files ?? []).map((f) => f.path),
+			...(statuses.get(r.number) ?? NO_STATUS),
 		}));
 	} catch {
 		prs = null;
@@ -228,7 +314,17 @@ export function attributeGit(
 				staged: e.staged.length,
 				committed: e.committed.length,
 				commits: b.commits,
-				pr: b.pr ? { number: b.pr.number, url: b.pr.url, draft: b.pr.draft, title: b.pr.title } : null,
+				pr: b.pr
+					? {
+							number: b.pr.number,
+							url: b.pr.url,
+							draft: b.pr.draft,
+							title: b.pr.title,
+							checks: b.pr.checks,
+							review: b.pr.review,
+							conflicts: b.pr.conflicts,
+						}
+					: null,
 				files: { wip: e.wip.slice(0, 15), staged: e.staged.slice(0, 15), committed: e.committed.slice(0, 15) },
 				via: e.via,
 			};

@@ -10,6 +10,7 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 - `gitboard measure --from <iso> [--to <iso>]` reads the live pages of a Next.js app router from Grafana Tempo through `gcx` and writes the tab's data file.
 - `GET /api/architecture` serves that file.
 - Icons `Buildings`, `Door`, `House`, `Plug`, `Stethoscope`, `Storefront`, `SunHorizon`, `Timer` and `UserCircle`.
+- Pull request status on cards: checks passing, failing or pending, review approved, changes requested or review required, and merge conflicts, read once a minute beside the pull request list through a read-only `gh api graphql` query of GitHub's own rollup, so it holds up on repos with many checks. If only that query fails, cards still show their pull requests. The chip shows the worst state, with conflicts and failing checks in the attention tone, and the details panel lists each one. New filters: "Checks failing" and "Needs review". A draft is not counted as needing review.
 - `architecture.calls`, `architecture.pathFolds` and `architecture.platform`: each repo describes its own database, cache and host. Rules match a call on host, path prefix or span name prefix and give its endpoint name, column, group, label and icon. An example preset for one stack is in `docs/presets/`. Without rules every call with a URL is a provider.
 - `architecture.pagesCommand`: a command that lists every page route, for apps that are not on the Next.js app router.
 - The measure file carries `format` (2) and `targets`. The board draws an older file with targets described from the current rules.

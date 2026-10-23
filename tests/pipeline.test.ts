@@ -4,10 +4,22 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { DEFAULT_CONFIG, type GitBoardConfig } from "../src/config.js";
-import { attributeGit, codeMentions, parseStatus, type Pipeline, readPipeline, resolveCodeRoots } from "../src/pipeline.js";
+import {
+	attributeGit,
+	codeMentions,
+	parseStatus,
+	type Pipeline,
+	readPipeline,
+	resolveCodeRoots,
+	checksState,
+	PR_STATUS_QUERY,
+	parsePrStatus,
+	reviewState,
+} from "../src/pipeline.js";
+import { type FakeGh, fakeGh, prRow } from "./fake-gh.js";
 
 const config = (over: Partial<GitBoardConfig> = {}): GitBoardConfig => ({ ...DEFAULT_CONFIG, github: false, ...over });
 
@@ -98,7 +110,17 @@ describe("git pipeline", () => {
 					staged: [],
 					committed: ["app/layout.tsx", "next.config.ts"],
 					commits: 2,
-					pr: { number: 12, title: "Speed", url: "https://example.com/pull/12", draft: true, branch: "page-speed", files: [] },
+					pr: {
+						number: 12,
+						title: "Speed",
+						url: "https://example.com/pull/12",
+						draft: true,
+						branch: "page-speed",
+						files: [],
+						checks: "fail",
+						review: "required",
+						conflicts: true,
+					},
 				},
 			],
 		};
@@ -112,7 +134,15 @@ describe("git pipeline", () => {
 				staged: 0,
 				committed: 2,
 				commits: 2,
-				pr: { number: 12, url: "https://example.com/pull/12", draft: true, title: "Speed" },
+				pr: {
+					number: 12,
+					url: "https://example.com/pull/12",
+					draft: true,
+					title: "Speed",
+					checks: "fail",
+					review: "required",
+					conflicts: true,
+				},
 				files: { wip: [], staged: [], committed: ["app/layout.tsx", "next.config.ts"] },
 				via: "branch",
 			},
@@ -144,5 +174,118 @@ describe("git pipeline", () => {
 		// "trunk" as the main branch: main itself is now unlanded work relative to nothing, feat-one is behind trunk.
 		const t = await readPipeline(root, config({ mainBranch: "trunk" }));
 		expect(t.branches.find((b) => b.branch === "main")).toMatchObject({ commits: 0 });
+	});
+});
+
+describe("pull request status", () => {
+	it("maps GitHub's rollup state, and null with no checks", () => {
+		expect(checksState("SUCCESS")).toBe("pass");
+		expect(checksState("FAILURE")).toBe("fail");
+		expect(checksState("ERROR")).toBe("fail");
+		expect(checksState("PENDING")).toBe("pending");
+		expect(checksState("EXPECTED")).toBe("pending");
+		expect(checksState(null)).toBeNull();
+		expect(checksState("")).toBeNull();
+		expect(checksState("constructor")).toBeNull();
+	});
+
+	it("maps the review decision", () => {
+		expect(reviewState("APPROVED")).toBe("approved");
+		expect(reviewState("CHANGES_REQUESTED")).toBe("changes");
+		expect(reviewState("REVIEW_REQUIRED")).toBe("required");
+		expect(reviewState("")).toBeNull();
+		expect(reviewState(null)).toBeNull();
+		expect(reviewState("constructor")).toBeNull();
+	});
+
+	it("parses the status query, skipping malformed nodes", () => {
+		const node = (number: unknown, state: string | null, extra: Record<string, unknown> = {}) => ({
+			number,
+			commits: { nodes: [{ commit: { statusCheckRollup: state ? { state } : null } }] },
+			...extra,
+		});
+		const json = JSON.stringify({
+			data: {
+				repository: {
+					pullRequests: {
+						nodes: [
+							node(1, "FAILURE", { reviewDecision: "APPROVED", mergeable: "CONFLICTING" }),
+							node(2, null, { reviewDecision: null, mergeable: "UNKNOWN" }),
+							node("3", "SUCCESS"),
+							null,
+							{ number: 4 },
+						],
+					},
+				},
+			},
+		});
+		expect([...parsePrStatus(json)]).toEqual([
+			[1, { checks: "fail", review: "approved", conflicts: true }],
+			[2, { checks: null, review: null, conflicts: false }],
+			[4, { checks: null, review: null, conflicts: false }],
+		]);
+		expect(parsePrStatus("{}").size).toBe(0);
+		expect(parsePrStatus('{"errors":[{"message":"x"}]}').size).toBe(0);
+	});
+
+	let gh: FakeGh | null = null;
+	afterEach(() => {
+		gh?.restore();
+		gh = null;
+	});
+
+	it("reads checks, review and conflicts through gh, for worktree branches and remote-only ones", async () => {
+		gh = fakeGh();
+		const root = repo({ "src/a.ts": "x" });
+		sh(root, "worktree", "add", "-q", "-b", "feat-one", path.join(root, ".worktrees", "one"), "main");
+		gh.prs([
+			prRow({ number: 7, headRefName: "feat-one", checkState: "FAILURE", reviewDecision: "CHANGES_REQUESTED" }),
+			prRow({ number: 8, headRefName: "remote-only", isDraft: true, checkState: "PENDING", reviewDecision: "REVIEW_REQUIRED", mergeable: "CONFLICTING", files: [{ path: "src/a.ts" }] }),
+			prRow({ number: 9, headRefName: "green", checkState: "SUCCESS", reviewDecision: "APPROVED", mergeable: "UNKNOWN" }),
+			prRow({ number: 10, headRefName: "no-checks" }),
+		]);
+		const p = await readPipeline(root, config({ github: true }));
+		const list = gh.calls().find((a) => a[0] === "pr");
+		const graphql = gh.calls().find((a) => a[0] === "api");
+		expect(list?.slice(0, 2)).toEqual(["pr", "list"]);
+		expect(list?.[list.indexOf("--json") + 1]).toBe("number,title,url,isDraft,headRefName,files");
+		expect(graphql?.slice(0, 2)).toEqual(["api", "graphql"]);
+		expect(graphql).toContain(`query=${PR_STATUS_QUERY}`);
+		expect(PR_STATUS_QUERY).toContain("reviewDecision mergeable");
+		// `contexts` makes GitHub roll up every check; a large page of them is what timed out.
+		expect(PR_STATUS_QUERY).toContain("statusCheckRollup { state contexts(first: 1) { totalCount } }");
+		expect(PR_STATUS_QUERY).not.toMatch(/contexts\(first: \d{2,}/);
+		// SECURITY.md: gh only reads. The status call is a query, never a mutation.
+		expect(PR_STATUS_QUERY.startsWith("query(")).toBe(true);
+		expect(PR_STATUS_QUERY).not.toMatch(/mutation/i);
+		for (const call of gh.calls()) expect(["pr list", "api graphql"]).toContain(call.slice(0, 2).join(" "));
+		const pr = (branch: string) => p.branches.find((b) => b.branch === branch)?.pr;
+		expect(pr("feat-one")).toMatchObject({ number: 7, checks: "fail", review: "changes", conflicts: false, draft: false });
+		expect(pr("remote-only")).toMatchObject({ number: 8, checks: "pending", review: "required", conflicts: true, draft: true });
+		expect(p.branches.find((b) => b.branch === "remote-only")).toMatchObject({ path: null, committed: ["src/a.ts"] });
+		expect(pr("green")).toMatchObject({ number: 9, checks: "pass", review: "approved", conflicts: false });
+		expect(pr("no-checks")).toMatchObject({ number: 10, checks: null, review: null, conflicts: false });
+	});
+
+	it("keeps the pull requests without status when only the status call fails", async () => {
+		gh = fakeGh();
+		gh.fail("status");
+		gh.prs([prRow({ number: 3, headRefName: "x", checkState: "FAILURE", mergeable: "CONFLICTING" })]);
+		const p = await readPipeline(repo({ "a.md": "x" }), config({ github: true }));
+		expect(p.prs).toEqual([expect.objectContaining({ number: 3, checks: null, review: null, conflicts: false })]);
+	});
+
+	it("leaves prs null when gh fails, and never calls gh with github off", async () => {
+		gh = fakeGh();
+		gh.fail(true);
+		const failing = await readPipeline(repo({ "a.md": "x" }), config({ github: true }));
+		expect(failing.prs).toBeNull();
+		const calls = gh.calls().length;
+		expect(calls).toBeGreaterThan(0);
+		gh.fail(false);
+		gh.prs([prRow()]);
+		const off = await readPipeline(repo({ "a.md": "x" }), config({ github: false }));
+		expect(off.prs).toBeNull();
+		expect(gh.calls()).toHaveLength(calls);
 	});
 });
