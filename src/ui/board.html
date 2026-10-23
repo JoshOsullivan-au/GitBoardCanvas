@@ -431,7 +431,11 @@ dialog.doc-mode { width: min(48rem, calc(100vw - 32px)); }
 /* Fixed column widths and wide gutters: every card in a column is the same width, and the links run in the empty corridors between columns */
 .arch .fwcols { grid-template-columns: 216px 292px 292px 292px; column-gap: 88px; justify-content: start; min-width: max-content; overflow: visible; }
 .arch .fwcol .card { width: 100%; }
-.ph-left { display: flex; align-items: flex-end; gap: 16px; min-width: 0; }
+/* The title and tabs keep their width; each tab's tool bar shrinks (its search box gives way), and the header wraps
+   when even that cannot fit, so a tool never sits on top of a tab. */
+.ph-head:has(.ph-left) { flex-wrap: wrap; }
+.ph-left { display: flex; align-items: flex-end; gap: 16px; flex: none; }
+.tools > .tools { flex: 0 1 auto; min-width: 0; }
 .tabs { display: flex; gap: 6px; padding-bottom: 3px; }
 .tabs .opt { height: 30px; padding: 0 12px; font-weight: 500; }
 .arch .card .chips { max-width: calc(100% - 20px); }
