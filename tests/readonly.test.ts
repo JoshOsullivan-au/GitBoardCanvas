@@ -131,10 +131,13 @@ describe("reading the repo changes nothing", () => {
 
 	it("leaves them as they were while the board serves every route and refreshes the git pipeline", async () => {
 		const before = snapshot();
-		const port = 40000 + Math.floor(Math.random() * 20000);
+		// Port 0: the OS picks a free port, and the board is built for the port it got.
+		let handle: http.RequestListener = () => {};
+		const server = http.createServer((req, res) => handle(req, res));
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as { port: number };
 		const board = createBoardServer({ root, config: loadConfig(root), port, refreshMs: 0, log: () => {} });
-		const server = http.createServer(board.handle);
-		await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+		handle = board.handle;
 		try {
 			await board.refresh();
 			const statuses = [
