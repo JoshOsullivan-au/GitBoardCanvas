@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
-// GitBoard Canvas CLI (`gitboard`): serve the board, move a feature, lint the lifecycle folder, list features, or lay out a new repo.
+// GitBoard Canvas CLI (`gitboard`): serve the board, move a feature, lint the lifecycle folder, list features, lay out a new
+// repo, or measure the live routes for the Architecture tab.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { checkTarget, measure, writeMap } from "./architecture/measure.js";
 import { loadBoard } from "./board.js";
 import { type GitBoardConfig, loadConfig, stagesOf } from "./config.js";
 import { mainCheckout, repoRoot } from "./git.js";
@@ -22,6 +24,8 @@ Usage:
   gitboard lint                          check the lifecycle folder
   gitboard list [--json]                 print every feature by stage
   gitboard init                          create the lifecycle folder, templates and config
+  gitboard measure --from <iso> [--to <iso>]
+                                         read the live routes from Tempo for the Architecture tab
   gitboard --version | --help
 `;
 
@@ -77,6 +81,31 @@ async function main(argv: string[]): Promise<number> {
 		for (const f of skipped) process.stdout.write(`kept    ${f}\n`);
 		process.stdout.write(`\nNext: commit the new files, then run \`gitboard\`.\n`);
 		return 0;
+	}
+	if (cmd === "measure") {
+		const arch = config.architecture;
+		if (!arch) {
+			process.stderr.write("gitboard: no architecture block in gitboard.config.json; see docs/configuration.md\n");
+			return 1;
+		}
+		const from = flag(args, "--from");
+		if (!from) {
+			process.stderr.write("Usage: gitboard measure --from <iso> [--to <iso>]\n");
+			return 1;
+		}
+		try {
+			checkTarget(root, arch.data);
+			const map = await measure(root, arch, from, flag(args, "--to") ?? new Date().toISOString());
+			writeMap(root, arch.data, map);
+			const measured = map.routes.filter((r) => r.samples.length).length;
+			process.stderr.write(
+				`gitboard: ${measured} of ${map.routes.length} live routes measured, ${map.routes.length - measured} with no request; wrote ${arch.data}\n`,
+			);
+			return 0;
+		} catch (error) {
+			process.stderr.write(`gitboard: ${error instanceof Error ? error.message : String(error)}\n`);
+			return 1;
+		}
 	}
 	if (!fs.existsSync(path.join(root, config.roadmapDir))) {
 		process.stderr.write(`gitboard: no ${config.roadmapDir}/ folder here; run \`gitboard init\` first\n`);

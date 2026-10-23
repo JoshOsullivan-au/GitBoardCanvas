@@ -4,7 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import type { GitBoardConfig } from "./config.js";
-import { git as gitSync, listWorktrees } from "./git.js";
+import { GIT_ENV, git as gitSync, listWorktrees } from "./git.js";
 import type { CardGit } from "./types.js";
 
 const run = promisify(execFile);
@@ -27,7 +27,7 @@ export type BranchGit = {
 export type Pipeline = { branches: BranchGit[]; prs: PullRequest[] | null; readAt: number };
 
 async function git(cwd: string, args: string[]): Promise<string> {
-	const { stdout } = await run("git", args, { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+	const { stdout } = await run("git", args, { cwd, env: GIT_ENV, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 	return stdout;
 }
 

@@ -32,7 +32,8 @@
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "dev": "npm run build && node dist/cli.js serve"
+    "dev": "npm run build && node dist/cli.js serve",
+    "check": "npm run typecheck && npm run build && npm test"
   },
   "dependencies": {
     "marked": "^18.1.0"

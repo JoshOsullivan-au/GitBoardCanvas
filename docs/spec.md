@@ -113,7 +113,7 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 
 - R1. Runs on Node 22.12 or later on macOS, Linux and Windows (WSL), with git 2.38 or later.
 - R2. `npx gitboard-canvas` in any git repo starts the board; `npm i -D gitboard-canvas` installs the `gitboard` command for a `"board": "gitboard"` script.
-- R3. One runtime dependency (`marked`). No database, no account, no network call except `gh` for pull requests.
+- R3. One runtime dependency (`marked`). No database, no account, no network call except `gh` for pull requests, and `gcx` and an optional `HEAD` to `architecture.site` when the person runs `gitboard measure`.
 - R4. `gitboard init` creates the lifecycle folder, its five stage folders, a README per stage, the feature templates and a `gitboard.config.json`, and adds `.worktrees/` to `.gitignore` when it is missing. It never overwrites an existing file or removes a line.
 
 ### 2.2 CLI
@@ -123,11 +123,12 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 - R7. `gitboard lint`: run the built-in checks; exit 1 on a problem.
 - R8. `gitboard list [--json]`: print the board.
 - R9. `gitboard init`, `gitboard --version`, `gitboard --help`.
+- R9a. `gitboard measure --from <iso> [--to <iso>]`: read the live pages from Tempo through `gcx` and write `architecture.data`; exit 1 without an `architecture` block or `--from`.
 
 ### 2.3 Server
 
 - R10. Listens on 127.0.0.1 and ::1 only. Refuses a request whose Host is not a loopback name with the port (DNS rebinding), and a write whose Origin is not the board's own.
-- R11. Routes: `GET /` (the page), `GET /api/board`, `GET /api/version`, `GET /api/doc?path=` (one markdown file under the lifecycle folder, rendered with raw HTML escaped), `POST /api/plan`, `POST /api/move`.
+- R11. Routes: `GET /` (the page), `GET /api/board`, `GET /api/version`, `GET /api/doc?path=` (one markdown file under the lifecycle folder, rendered with raw HTML escaped), `GET /api/architecture` (the measure file, 404 with a plain message when there is none or no `architecture` block), `POST /api/plan`, `POST /api/move`.
 - R12. Writes take JSON only, at most 16 KB; an oversized body answers 413, bad JSON 400. Errors never carry a stack trace.
 - R13. Reads the main checkout, whichever worktree starts the server.
 - R14. Refreshes the git pipeline in the background every 15 seconds and pull requests at most once a minute. The board version combines the roadmap version and the pipeline hash, so the page refetches only on change.
@@ -142,6 +143,7 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 - R20. Filter by group, relation (blocked, gated, linked), git step and text; order by stage order, progress, last landed, created or title.
 - R21. Light and dark themes from the system setting. System fonts; no web font or external request.
 - R22. Live: moves made in a terminal, an editor or another worktree appear within about two seconds of landing.
+- R23 (ADR 0001). With an `architecture` block, header tabs (Roadmap first and the default, the last choice remembered per browser) switch to the Architecture tab: request, pages, database, cache and providers columns at fixed widths, each page's warm server time against the budget, hover to trace its calls with the board's link routing, click for a read path with resizable name and time columns.
 
 ### 2.5 Configuration
 
@@ -160,6 +162,7 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 | `lint` | built-in on | `{ "builtin": true, "command": null, "phaseHeadings": [], "readmeSections": [] }` |
 | `hooks.onEnter` | `{}` | `{ "5": ["node scripts/changelog.mjs {slug}"] }`, keyed by stage id or folder. |
 | `github` | `true` | Read open pull requests with `gh`. |
+| `architecture` | none | The Architecture tab and `gitboard measure`; see docs/configuration.md. |
 
 Hook and lint commands are code the repo owner wrote; GitBoard Canvas runs them in the move worktree with the placeholders shell-quoted.
 

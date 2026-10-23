@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { Marked } from "marked";
 
+import { isMeasure } from "./architecture/measure.js";
 import { loadBoard } from "./board.js";
 import type { GitBoardConfig } from "./config.js";
 import { boardVersion } from "./git.js";
@@ -79,7 +80,11 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 	const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
 	const lifecycle = path.join(root, config.roadmapDir);
 	const icons = JSON.stringify(JSON.parse(fs.readFileSync(path.join(UI, "icons.json"), "utf8"))).replace(/</g, "\\u003c");
-	const page = () => fs.readFileSync(path.join(UI, "board.html"), "utf8").replace("__ICONS__", () => icons);
+	const page = () =>
+		fs
+			.readFileSync(path.join(UI, "board.html"), "utf8")
+			.replace("__ICONS__", () => icons)
+			.replace("__ARCHITECTURE__", String(config.architecture !== null));
 	const markdown = new Marked({ gfm: true, renderer: { html: ({ text }) => escapeHtml(text) } });
 
 	// Git pipeline across every worktree: slow on big repos, so it refreshes in the background and after a move,
@@ -120,6 +125,25 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 		return { path: rel, html: markdown.parse(fs.readFileSync(real, "utf8")) as string };
 	}
 
+	/**
+	 * The Architecture tab's data file, or why there is none (404) or why it cannot be shown (500). A path that resolves
+	 * outside the repo counts as none.
+	 */
+	function architecture(): { body: string } | { status: 404 | 500; error: string } {
+		if (!config.architecture) return { status: 404, error: "No architecture block in gitboard.config.json." };
+		const none = { status: 404 as const, error: "No measure yet: run gitboard measure --from <iso>." };
+		let real: string;
+		try {
+			real = fs.realpathSync(path.join(root, config.architecture.data));
+		} catch {
+			return none;
+		}
+		if (!real.startsWith(fs.realpathSync(root) + path.sep)) return none;
+		const body = fs.readFileSync(real, "utf8");
+		if (isMeasure(body)) return { body };
+		return { status: 500, error: `${config.architecture.data} is not a measure: run gitboard measure again.` };
+	}
+
 	function moveInput(body: unknown): MoveInput | null {
 		const { slug, from, to } = (body ?? {}) as Record<string, unknown>;
 		const stage = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= config.stages.length;
@@ -140,6 +164,10 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 			if (req.method === "GET" && url.pathname === "/api/doc") {
 				const d = doc(url.searchParams.get("path"));
 				return d ? send(res, 200, d) : send(res, 404, { error: "That file is not in the lifecycle folder." });
+			}
+			if (req.method === "GET" && url.pathname === "/api/architecture") {
+				const a = architecture();
+				return "body" in a ? send(res, 200, a.body) : send(res, a.status, { error: a.error });
 			}
 			if (req.method === "GET" && url.pathname === "/api/version") {
 				return send(res, 200, { version: `${boardVersion(root, config.roadmapDir, config.mainBranch)}.${pipelineHash}` });

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { type GitBoardConfig, groupFor, stagesOf } from "./config.js";
-import { boardVersion } from "./git.js";
+import { boardVersion, GIT_ENV } from "./git.js";
 import { NOT_A_FEATURE } from "./lint.js";
 import { attributeGit, type Pipeline, resolveCodeRoots } from "./pipeline.js";
 import { type FeatureText, findRelations, openDecisions, openOps } from "./relations.js";
@@ -125,7 +125,7 @@ function lastTouched(root: string, config: GitBoardConfig, created: Map<string, 
 		log = execFileSync(
 			"git",
 			["log", config.mainBranch, "--format=@%ct %h", "--name-only", "--", config.roadmapDir],
-			{ cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] },
+			{ cwd: root, env: GIT_ENV, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] },
 		);
 	} catch {
 		return out;

@@ -1,0 +1,12 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Build and test before every commit. Turn on once per clone: git config core.hooksPath .githooks
+# `git commit --no-verify` skips it in an emergency; CI still runs the same check.
+# Git exports GIT_DIR, GIT_INDEX_FILE and its other repo variables to hooks. The tests make their own temporary repos,
+# so clear them first, or those repos' git would write to this one.
+unset $(git rev-parse --local-env-vars)
+echo "pre-commit: npm run check (typecheck, build, test)" >&2
+npm run --silent check >&2 || {
+	echo "pre-commit: npm run check failed; the commit was not made" >&2
+	exit 1
+}

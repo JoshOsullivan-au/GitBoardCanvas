@@ -19,6 +19,7 @@ A bad config fails once with the whole list of problems, for example `gitboard.c
 | `lint` | built-in on | Checks that gate a move. |
 | `hooks.onEnter` | `{}` | Commands run when a feature enters a stage. |
 | `github` | `true` | Read open pull requests through `gh`. |
+| `architecture` | none | Turns on the Architecture tab and sets what `gitboard measure` reads. |
 
 ### roadmapDir
 
@@ -60,7 +61,7 @@ Hook keys and `gitboard move` accept the stage id, the folder or the name.
 
 A group is a heading cards sit under inside a column. `match` is a JavaScript regular expression, tested against the slug without regard to case. The first match wins. A `group:` line in a feature's frontmatter overrides the rules.
 
-`icon` is optional and names the icon shown on the group heading and its cards. Choose from `AddressBook`, `Bell`, `BookOpen`, `Briefcase`, `BuildingOffice`, `ChartLineUp`, `ChatCircle`, `Cloud`, `Code`, `CreditCard`, `Cube`, `Database`, `DeviceMobile`, `Gear`, `Globe`, `Lightning`, `Package`, `PaintBrush`, `Palette`, `Robot`, `Rocket`, `Sparkle`, `Stack`, `Users`, `Wrench`. A missing or unknown name shows `Stack`. To give the default group an icon, add a rule with the same name.
+`icon` is optional and names the icon shown on the group heading and its cards. Choose from `AddressBook`, `Bell`, `BookOpen`, `Briefcase`, `BuildingOffice`, `Buildings`, `CalendarBlank`, `ChartLineUp`, `ChatCircle`, `Cloud`, `Code`, `CreditCard`, `Cube`, `Database`, `DeviceMobile`, `Door`, `Gear`, `Globe`, `House`, `Lightning`, `Package`, `PaintBrush`, `Palette`, `Plug`, `Robot`, `Rocket`, `Sparkle`, `Stack`, `Stethoscope`, `Storefront`, `SunHorizon`, `UserCircle`, `Users`, `Wrench`. A missing or unknown name shows `Stack`. To give the default group an icon, add a rule with the same name.
 
 ```json
 {
@@ -122,6 +123,54 @@ A hook that exits non-zero refuses the move.
 ### github
 
 Set `false` to stop GitBoard Canvas from calling `gh`. The PR step is then empty.
+
+### architecture
+
+The Architecture tab sits beside the Roadmap board. It shows every page your app serves on the path request, pages, database, cache and providers, with each page's server time against a budget, the calls it makes and the waves they run in. Hover a page to trace its calls; click a card for its read path. Without an `architecture` block the tab is hidden.
+
+`gitboard measure` reads the pages from a Next.js app router folder and their requests from Grafana Tempo through the `gcx` CLI, then writes the `data` file the tab reads. `gcx` must be installed and signed in to your Grafana stack.
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `site` | `""` | The production origin, such as `https://example.com`. When set, a page Tempo has no request for gets one `HEAD` request to see whether the host served it from its cache. |
+| `budgetMs` | `500` | Server time a page should come in under. A card over it turns amber, over twice it red. |
+| `appDir` | `"app"` | The app router folder the pages are read from. Route groups and parallel slots are dropped from the route; `_` folders and intercepting routes (`(.)x`, `(..)x`, `(...)x`) are skipped. |
+| `exclude` | `[]` | Regular expressions for routes production does not serve. |
+| `routesCommand` | `null` | A command run at the repo root that reads every page route as a JSON array on stdin and prints the live ones. When set it replaces `exclude`, so your app's own rule decides what is live. |
+| `areas` | `[]` | Groups on the Pages column, `{ "name", "match", "icon" }`. `match` is tested against the route without regard to case; the first match wins. `icon` takes the group icon names above. |
+| `defaultArea` | `"Pages"` | Area for a route no rule matches. |
+| `tempo` | see below | `datasource` (the Tempo datasource UID) and `service` (the server's `service.name`) are required by `gitboard measure`. `region` narrows to one `cloud.region`, or `null` for all. |
+| `shellShare` | `0.9` | Share of requests an endpoint must appear on to count as the shell's: the layout every page runs. |
+| `access` | `[]` | Endpoints shown as access checks, such as `"rpc permit"`. |
+| `providers` | `{}` | Display names for provider hosts, such as `{ "api.example.com": "Example" }`. |
+| `cache` | `null` | `{ "name", "reader", "dirs" }`: a cache read helper. When no request reached the cache, the tab lists the files under `dirs` that call `reader`. |
+| `data` | `".gitboard/architecture.json"` | Repo-relative file `gitboard measure` writes and the tab reads. Commit it to share a measure, or ignore it. `measure` refuses to overwrite a file there that is not an earlier measure. |
+
+```json
+{
+  "architecture": {
+    "site": "https://example.com",
+    "budgetMs": 500,
+    "exclude": ["^/admin(/|$)"],
+    "areas": [
+      { "name": "Home", "match": "^/$|^/home", "icon": "House" },
+      { "name": "Checkout", "match": "^/checkout", "icon": "CreditCard" }
+    ],
+    "defaultArea": "Public",
+    "tempo": { "datasource": "grafanacloud-traces", "service": "web", "region": null },
+    "access": ["rpc permit"],
+    "providers": { "api.stripe.com": "Stripe" }
+  }
+}
+```
+
+To measure, load each live page twice inside a window, then run:
+
+```sh
+gitboard measure --from 2026-10-23T08:00:00Z --to 2026-10-23T09:00:00Z
+```
+
+`--to` defaults to now. The tab shows the second request of each page (warm) and keeps the first as the cold figure. The window must be 25 hours or less, and Tempo returns at most 1000 traces. Calls are named from the server's client spans: Supabase calls by API (`rpc`, `table`, `auth`, `storage`), Redis spans as cache calls, and any other host as a provider.
 
 ## Hook recipes
 

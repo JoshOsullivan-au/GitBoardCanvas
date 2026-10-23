@@ -426,13 +426,83 @@ dialog.doc-mode { width: min(48rem, calc(100vw - 32px)); }
 .btn[aria-busy="true"]::before { content: ""; width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin 0.7s linear infinite; }
 .btn:disabled { opacity: 0.5; pointer-events: none; }
 @keyframes spin { to { rotate: 360deg; } }
+
+/* ---- Architecture tab: the board's parts, plus these few, on its tokens ---- */
+/* Fixed column widths and wide gutters: every card in a column is the same width, and the links run in the empty corridors between columns */
+.arch .fwcols { grid-template-columns: 216px 292px 292px 292px; column-gap: 88px; justify-content: start; min-width: max-content; overflow: visible; }
+.arch .fwcol .card { width: 100%; }
+/* The title and tabs keep their width; each tab's tool bar shrinks (its search box gives way), and the header wraps
+   when even that cannot fit, so a tool never sits on top of a tab. */
+.ph-head:has(.ph-left) { flex-wrap: wrap; }
+.ph-left { display: flex; align-items: flex-end; gap: 16px; flex: none; }
+.tools > .tools { flex: 0 1 auto; min-width: 0; }
+.tabs { display: flex; gap: 6px; padding-bottom: 3px; }
+.tabs .opt { height: 30px; padding: 0 12px; font-weight: 500; }
+.arch .card .chips { max-width: calc(100% - 20px); }
+.arch .card .av-b .ph, .arch .card .av-b.dt { flex: none; }
+.arch .card .av-b .t { overflow: hidden; text-overflow: ellipsis; }
+.card .av-b.tn { --gs: var(--tone-good); }
+.card .av-b.tn.over { --gs: var(--tone-att); }
+.card .av-b.tn.far { --gs: var(--destructive); }
+.card .av-b.tn { color: var(--gs); border-color: color-mix(in oklch, var(--gs) 35%, var(--border)); font-weight: 500; }
+.card.far { --lg-rim-hi: color-mix(in oklch, var(--destructive) 60%, transparent); --lg-rim-lo: color-mix(in oklch, var(--destructive) 20%, transparent); }
+.card.over { --lg-rim-hi: color-mix(in oklch, var(--tone-att) 60%, transparent); --lg-rim-lo: color-mix(in oklch, var(--tone-att) 20%, transparent); }
+.card.far .st, .card.over .st { color: var(--gs, var(--tone-att)); }
+.card.far .st { color: var(--destructive); }
+.card.over .st { color: var(--tone-att); }
+.card.ep.shell .tile, .card.ep.access .tile { color: var(--arrow-soft); }
+.fwcols.tracing .card.on { opacity: 1; }
+.meter.bud { position: relative; overflow: visible; }
+.meter.bud::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 1.5px solid var(--muted-foreground); }
+.meter.bud.over > i { background: var(--tone-att); }
+.meter.bud.far > i { background: var(--destructive); }
+.meter.bud.ok > i { background: var(--tone-good); }
+
+/* Read path rows: GitBoard's phase list with a timeline between name and time; grips widen the name or time column */
+dialog.wide.doc-mode .dlg { max-height: min(88vh, 980px); }
+.wf { --wf-label: 220px; --wf-ms: 56px; position: relative; }
+.wf .axis, .wf .phase { display: grid; grid-template-columns: var(--wf-label) minmax(120px, 1fr) var(--wf-ms); gap: 10px; align-items: center; }
+.wf .phase { margin: 0; padding: 6px 0; border-radius: 0; }
+.wf .phase:hover { background: var(--muted); }
+.wf .phase .lbl { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.wf .phase .num { width: auto; flex: none; }
+.wf .phase .lbl .ph { flex: none; font-size: 14px; color: var(--muted-foreground); }
+.wf .phase .pt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf .phase .pf { text-align: right; }
+.wf .phase.fixed { cursor: default; }
+.wf .phase.fixed:hover { background: none; }
+.wf .axis { font-size: 11px; color: var(--muted-foreground); padding-bottom: 4px; }
+.wf .ticks { position: relative; height: 14px; }
+.wf .ticks span { position: absolute; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+.tl { position: relative; height: 6px; border-radius: 999px; background: color-mix(in oklch, var(--fg-a) 8%, transparent); }
+.tl .budget { position: absolute; top: -4px; bottom: -4px; border-left: 1.5px dashed var(--muted-foreground); }
+.tl i { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 999px; background: var(--st-commit); }
+.phase.o-shell .tl i { background: var(--arrow-soft); }
+.phase.o-provider .tl i { background: var(--st-pr); }
+.phase.server .tl i { background: var(--foreground); opacity: 0.7; }
+.col-grip { position: absolute; top: 0; bottom: 0; z-index: 2; width: 10px; margin-left: -5px; cursor: col-resize; touch-action: none; }
+.col-grip::before { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; border-left: 1.5px solid var(--border); transition: border-color 120ms var(--ease-out); }
+.col-grip:hover::before, .col-grip[data-drag]::before { border-left-color: var(--arrow); }
+.col-grip:focus-visible { outline: none; }
+.col-grip:focus-visible::before { border-left: 2px solid var(--ring); }
+.col-grip[data-col="label"] { left: calc(var(--wf-label) + 5px); }
+.col-grip[data-col="ms"] { left: calc(100% - var(--wf-ms) - 5px); }
+.wf[data-dragging] { user-select: none; cursor: col-resize; }
+.phase:focus-visible { outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent); outline-offset: -2px; }
 </style>
 </head>
 <body>
 <main class="page">
   <header class="ph-head">
-    <h1>GitBoard Canvas</h1>
+    <div class="ph-left">
+      <h1>GitBoard Canvas</h1>
+      <div class="tabs" role="tablist" aria-label="View" hidden>
+        <button type="button" class="opt" role="tab" id="tab-roadmap" aria-selected="true" aria-pressed="true" aria-controls="scroll" data-tab="roadmap">Roadmap</button>
+        <button type="button" class="opt" role="tab" id="tab-architecture" aria-selected="false" aria-pressed="false" aria-controls="archScroll" data-tab="architecture">Architecture</button>
+      </div>
+    </div>
     <div class="tools">
+      <div class="tools" data-view="roadmap">
       <div class="pop-wrap">
         <button type="button" class="btn" id="filterBtn" aria-expanded="false" aria-controls="filterPanel"><span data-icon="Funnel"></span>Filter<span class="fcount" id="fcount" hidden></span></button>
         <div class="pop" id="filterPanel" role="dialog" aria-label="Filter" hidden></div>
@@ -456,21 +526,42 @@ dialog.doc-mode { width: min(48rem, calc(100vw - 32px)); }
       </label>
       <label class="search"><span data-icon="MagnifyingGlass"></span><input id="q" type="search" placeholder="Search" aria-label="Search features" autocomplete="off"></label>
       <button type="button" class="btn" id="collapse">Collapse all</button>
+      </div>
+      <div class="tools" data-view="architecture" hidden>
+        <span class="pill" id="archWhen"></span>
+        <label class="order"><span data-icon="ArrowsDownUp"></span><span class="sr-only">Order</span>
+          <select id="archOrder" aria-label="Order routes">
+            <option value="slow">Slowest first</option>
+            <option value="calls">Most database calls</option>
+            <option value="waves">Most waves</option>
+            <option value="title">Route A to Z</option>
+          </select>
+          <span class="caret" data-icon="CaretDown"></span>
+        </label>
+        <label class="search"><span data-icon="MagnifyingGlass"></span><input id="archQ" type="search" placeholder="Search" aria-label="Search routes and calls" autocomplete="off"></label>
+        <button type="button" class="btn" id="archCollapse">Collapse all</button>
+      </div>
       <button type="button" class="icon-btn" id="theme" aria-label="Switch theme"></button>
     </div>
   </header>
   <div class="scroll" id="scroll">
     <div class="board" id="board"></div>
   </div>
+  <div class="scroll" id="archScroll" role="tabpanel" aria-labelledby="tab-architecture" hidden>
+    <div class="board arch" id="arch"></div>
+  </div>
 </main>
 
 <dialog id="details" class="wide" aria-labelledby="d-title"></dialog>
 <dialog id="confirm" aria-labelledby="c-title"></dialog>
+<dialog id="archDetails" class="wide" aria-labelledby="ad-title"></dialog>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 <p class="sr-only" id="announce" aria-live="assertive"></p>
 
 <script>
 const ICONS = __ICONS__;
+/* True when gitboard.config.json has an architecture block: the Architecture tab shows beside the Roadmap board. */
+const ARCHITECTURE = __ARCHITECTURE__;
 
 /* Filled from /api/board: stages, groups, the roadmap folder and the main branch. */
 let STAGES = [];
@@ -757,19 +848,29 @@ const groupKeys = () => STAGES.flatMap((s) => GROUPS.filter((group) => cellCards
 /* ---- links: hover or focus a card to draw what it waits on, what it unblocks and what it links to ---- */
 function drawLinks() {
   const cols = board.querySelector(".fwcols");
+  const t = state.trace ? byId.get(state.trace) : null;
+  const end = (id) => ({ el: byId.has(id) ? cols.querySelector(`[data-card="${CSS.escape(id)}"]`) : null, col: (byId.get(id)?.stage ?? 0) - 1 });
+  const links = [];
+  if (cols && t && !state.drag) {
+    const seen = new Set();
+    for (const d of t.deps) { seen.add(d); links.push({ from: end(d), to: end(t.id), cls: !isDone(byId.get(d)) && !isDone(t) ? "blk" : "dep", arrow: true }); }
+    for (const d of t.dependents) { seen.add(d); links.push({ from: end(t.id), to: end(d), cls: !isDone(t) && !isDone(byId.get(d)) ? "blk" : "dep", arrow: true }); }
+    for (const l of new Set([...t.links, ...t.backlinks])) if (!seen.has(l)) links.push({ from: end(t.id), to: end(l), cls: "lnk", arrow: false });
+  }
+  drawRoutes(cols, links);
+}
+/** Draws `links` ({ from, to, cls, arrow }, each end { el, col }: a card and its column index) into the board's .fwlinks. */
+function drawRoutes(cols, links) {
   const svg = cols?.querySelector(".fwlinks");
   if (!svg) return;
-  const t = state.trace ? byId.get(state.trace) : null;
-  if (!t || state.drag) { svg.innerHTML = ""; return; }
+  if (!links.length) { svg.innerHTML = ""; return; }
   const base = cols.getBoundingClientRect();
   const colRects = [...cols.querySelectorAll(".fwcol")].map((el) => { const r = el.getBoundingClientRect(); return { l: r.left - base.left, r: r.right - base.left }; });
-  const box = (id) => {
-    const c = byId.get(id);
-    const el = cols.querySelector(`[data-card="${CSS.escape(id)}"]`);
-    if (!c || !el) return null;
+  const box = ({ el, col }) => {
+    if (!el) return null;
     const anchor = el.closest(".grp[data-collapsed]")?.querySelector(".gh") ?? el;
     const r = anchor.getBoundingClientRect();
-    return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height, col: c.stage - 1 };
+    return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height, col };
   };
   // Lines never cross a card: they run vertically in the gutters between columns (gutter g sits left of column g)
   // and cross a column only through an empty channel between its cards, group rows and header. Lines that share a
@@ -778,7 +879,7 @@ function drawLinks() {
   const gutterX = (g) => (g === 0 ? colRects[0].l + 4 : g === colRects.length ? colRects[g - 1].r - 4 : (colRects[g - 1].r + colRects[g].l) / 2);
   const channels = colEls.map((el) => {
     const r = el.getBoundingClientRect();
-    const solid = [...el.querySelectorAll(".fwsh, .gh, [data-card], .card .chips")]
+    const solid = [...el.querySelectorAll(".fwsh, .gh, .card, .card .chips")]
       .filter((n) => !n.closest(".grp[data-collapsed] .gb"))
       .map((n) => { const b = n.getBoundingClientRect(); return [b.top - base.top - 3, b.bottom - base.top + 3]; })
       .sort((a, b) => a[0] - b[0]);
@@ -847,17 +948,13 @@ function drawLinks() {
       }
     }
   };
-  const add = (fromId, toId, cls, arrow) => {
-    const A = box(fromId), B = box(toId);
+  for (const { from, to, cls, arrow } of links) {
+    const A = box(from), B = box(to);
     const r = A && B && route(A, B);
-    if (!r) return;
+    if (!r) continue;
     trace(r.pts, cls);
     if (arrow) kinds[cls].heads.add(`M${n1(r.x2 - 6 * r.dir)} ${n1(r.y2 - 4)}L${n1(r.x2)} ${n1(r.y2)}L${n1(r.x2 - 6 * r.dir)} ${n1(r.y2 + 4)}`);
-  };
-  const seen = new Set();
-  for (const d of t.deps) { seen.add(d); add(d, t.id, !isDone(byId.get(d)) && !isDone(t) ? "blk" : "dep", true); }
-  for (const d of t.dependents) { seen.add(d); add(t.id, d, !isDone(t) && !isDone(byId.get(d)) ? "blk" : "dep", true); }
-  for (const l of new Set([...t.links, ...t.backlinks])) if (!seen.has(l)) add(t.id, l, "lnk", false);
+  }
   let out = "";
   for (const cls of ["lnk", "dep", "blk"]) {
     const k = kinds[cls];
@@ -1327,6 +1424,375 @@ render();
 refresh()
   .catch((error) => { state.loading = false; render(); toast(`Could not read the roadmap. ${firstLine(error.message)}`, { err: true }); })
   .finally(() => setTimeout(poll, POLL_MS));
+</script>
+<script>
+/* ---- Architecture tab: every route the host serves, on the path request, pages, database, cache and providers, each
+   with its warm server time against the budget, its calls and their waves (data: gitboard measure). Hover a route to
+   trace its calls; click a card for its read path. ---- */
+(() => {
+if (!ARCHITECTURE) return;
+const secs = (ms) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${ms} ms`);
+const hhmm = (iso) => new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+/* Areas, access endpoints, provider names and the cache come from the host's gitboard.config.json, through the data. */
+let AREAS = [];
+let AREA_ICON = {};
+let ACCESS = new Set();
+let PROVIDERS = {};
+const areaIcon = (area) => (ICONS && ICONS[AREA_ICON[area]] ? AREA_ICON[area] : "Stack");
+const TARGET_ICON = { auth: "ShieldCheck", rpc: "Lightning", table: "Database", storage: "Stack", redis: "Stack", provider: "Plug" };
+const epLabel = (endpoint) => {
+  const host = endpoint.split(" ")[0];
+  return PROVIDERS[host] ? `${PROVIDERS[host]} ${endpoint.slice(host.length + 1)}` : endpoint.replace(/^(rpc|table|auth|storage) /, "");
+};
+const epKind = (e) => (e.target === "rpc" ? "RPC" : e.target === "table" ? "Table" : e.target === "auth" ? "Auth" : e.target === "storage" ? "Storage" : e.target === "redis" ? "Cache" : "Provider");
+const epIcon = (endpoint, target) => (ACCESS.has(endpoint) ? "ShieldCheck" : TARGET_ICON[target]);
+
+let map = null;
+/* Why the tab has nothing to draw: the server's reason (no measure yet, a file that is not a measure), or no answer. */
+let problem = null;
+let nodes = [];            // one per route sample
+let endpoints = new Map(); // endpoint -> { endpoint, target, routes:Set, shell, calls, totalMs }
+const state = { q: "", order: "slow", trace: null, collapsed: new Set() };
+try {
+  const saved = JSON.parse(localStorage.getItem("gitboard-architecture-view") || "{}");
+  if (saved.order) state.order = saved.order;
+  state.collapsed = new Set(saved.collapsed || []);
+} catch {}
+const saveView = () => { try { localStorage.setItem("gitboard-architecture-view", JSON.stringify({ order: state.order, collapsed: [...state.collapsed] })); } catch {} };
+
+function build(data) {
+  map = data;
+  AREAS = data.areas.map((a) => a.name);
+  AREA_ICON = Object.fromEntries(data.areas.filter((a) => a.icon).map((a) => [a.name, a.icon]));
+  ACCESS = new Set(data.access ?? []);
+  PROVIDERS = data.providers ?? {};
+  nodes = [];
+  endpoints = new Map();
+  const shell = new Set(data.shell);
+  for (const r of data.routes) {
+    const many = r.samples.length > 1;
+    if (!r.samples.length) nodes.push({ key: r.route, route: r.route, area: r.area, file: r.file, label: r.route, sample: null, warm: null, calls: [], waves: 0, databaseCalls: 0, noRequest: r.noRequest, avgMs: r.avgMs, count: r.count });
+    for (const s of r.samples) {
+      const label = many ? `${r.route} · ${s.sample.split("/")[2] ?? s.sample}` : r.route;
+      const node = { key: `${r.route}|${s.sample}`, route: r.route, area: r.area, file: r.file, label, ...s, avgMs: r.avgMs, count: r.count };
+      nodes.push(node);
+      for (const c of s.calls) {
+        const e = endpoints.get(c.endpoint) ?? { endpoint: c.endpoint, target: c.target, routes: new Set(), shell: shell.has(c.endpoint), calls: 0, totalMs: 0 };
+        e.routes.add(node.key);
+        e.calls += 1;
+        e.totalMs += c.durMs;
+        endpoints.set(c.endpoint, e);
+      }
+    }
+  }
+}
+
+const tone = (n) => (!n.warm ? "none" : n.warm.serverMs <= map.budgetMs ? "ok" : n.warm.serverMs <= 2 * map.budgetMs ? "over" : "far");
+const avgOf = (e) => Math.round(e.totalMs / Math.max(1, e.calls));
+const routeMatches = (n) => !state.q || n.label.toLowerCase().includes(state.q) || n.calls.some((c) => c.endpoint.toLowerCase().includes(state.q));
+const epMatches = (e) => !state.q || e.endpoint.toLowerCase().includes(state.q) || [...e.routes].some((k) => k.toLowerCase().includes(state.q));
+const ORDER = {
+  slow: (a, b) => (b.warm?.serverMs ?? -1) - (a.warm?.serverMs ?? -1),
+  calls: (a, b) => b.databaseCalls - a.databaseCalls || ORDER.slow(a, b),
+  waves: (a, b) => b.waves - a.waves || ORDER.slow(a, b),
+  title: (a, b) => a.label.localeCompare(b.label),
+};
+
+/* ---- cards ---- */
+function routeCard(n) {
+  const t = tone(n);
+  const on = state.trace === n.key;
+  const dim = state.trace && !on;
+  const sub = n.warm ? `${plural(n.databaseCalls, "database call")} · ${plural(n.waves, "wave")}${n.status >= 300 && n.status < 400 ? ` · ${n.status}` : ""}` : n.noRequest ?? "No request in the window";
+  const chips = n.warm ? `<span class="av-b tn ${t}" title="Warm server time">${icon("Timer")}<span class="t">${secs(n.warm.serverMs)}</span></span>` : `<span class="av-b dt">No request</span>`;
+  const mark = t === "ok" ? icon("Check") : "";
+  return `<div class="card lg lg-regular ${t === "ok" ? "done" : t === "none" ? "lock" : t}${on ? " on" : ""}${dim ? " off" : ""}" data-key="${esc(n.key)}" role="button" tabindex="0" aria-label="${esc(`${n.label}, ${n.warm ? secs(n.warm.serverMs) : "no request"}, ${sub}`)}">
+    <span class="chips">${chips}</span><span class="tile">${icon(areaIcon(n.area))}</span><span class="tx"><b>${esc(n.label)}</b><span>${esc(sub)}</span></span><span class="st">${mark}</span></div>`;
+}
+
+function epCard(e, used) {
+  const dim = used && !used.has(e.endpoint);
+  const on = used && used.has(e.endpoint);
+  return `<div class="card ep lg lg-regular${e.shell ? " shell" : ""}${ACCESS.has(e.endpoint) ? " access" : ""}${on ? " on" : ""}${dim ? " off" : ""}" data-ep="${esc(e.endpoint)}" role="button" tabindex="0" aria-label="${esc(`${e.endpoint}, ${e.routes.size} routes, average ${avgOf(e)} ms`)}">
+    <span class="tile">${icon(epIcon(e.endpoint, e.target))}</span><span class="tx"><b>${esc(epLabel(e.endpoint))}</b><span>${plural(e.routes.size, "route")} · ${plural(e.calls, "call")} · ${avgOf(e)} ms avg</span></span><span class="st"></span></div>`;
+}
+
+function fixedCard(id, iconName, title, sub, open) {
+  return `<div class="card lg lg-regular" data-fixed="${id}"${open ? ` data-open="${open}" role="button" tabindex="0"` : ""}><span class="tile">${icon(iconName)}</span><span class="tx"><b>${esc(title)}</b><span>${esc(sub)}</span></span><span class="st">${open ? icon("CaretRight") : ""}</span></div>`;
+}
+
+function groupHtml(col, name, iconName, cardsHtml, count) {
+  const key = `${col}|${name}`;
+  const open = !state.collapsed.has(key);
+  return `<div class="grp${count ? "" : " empty"}"${open ? "" : " data-collapsed"} data-key="${esc(key)}">
+    <button type="button" class="gh" data-group="${esc(key)}" aria-expanded="${open}"><span class="car">${icon("CaretRight")}</span><span class="gi">${icon(iconName)}</span><span class="gn">${esc(name)}</span><span class="pill">${count}</span></button>
+    <div class="gb"><div class="inner"><div class="cell">${cardsHtml}</div></div></div>
+  </div>`;
+}
+
+function column(id, sn, name, count, groups, now) {
+  return `<section class="fwcol lg lg-clear${now ? " now" : ""}" data-col="${id}" aria-label="${sn} ${esc(name)}"><header class="fwsh lg lg-regular"><div class="t"><span class="sn">${sn}</span>${esc(name)}</div><span class="cnt">${count}</span></header>${groups}</section>`;
+}
+
+/* The database, cache and provider groups. */
+function epGroups() {
+  const all = [...endpoints.values()].filter(epMatches);
+  const sort = (list) => list.sort((a, b) => b.routes.size - a.routes.size || a.endpoint.localeCompare(b.endpoint));
+  return {
+    supabase: [
+      ["Shell", "Stack", sort(all.filter((e) => e.shell && e.target !== "provider" && e.target !== "redis"))],
+      ["Access checks", "ShieldCheck", sort(all.filter((e) => !e.shell && ACCESS.has(e.endpoint)))],
+      ["RPCs", "Lightning", sort(all.filter((e) => !e.shell && e.target === "rpc" && !ACCESS.has(e.endpoint)))],
+      ["Tables", "Database", sort(all.filter((e) => !e.shell && e.target === "table"))],
+      ["Auth and Storage", "ShieldCheck", sort(all.filter((e) => !e.shell && (e.target === "auth" || e.target === "storage")))],
+    ].filter(([, , list]) => list.length),
+    providers: sort(all.filter((e) => e.target === "provider")),
+    redis: sort(all.filter((e) => e.target === "redis")),
+  };
+}
+
+/* ---- board ---- */
+const board = document.getElementById("arch");
+function render() {
+  if (problem || !map) { board.innerHTML = `<p class="gnote">${esc(problem ?? "No measure yet: run gitboard measure --from <iso>.")}</p>`; return; }
+  const when = document.getElementById("archWhen");
+  when.textContent = `Tempo ${ddmmyyyy(map.window.from)} ${hhmm(map.window.from)}–${hhmm(map.window.to)}`;
+  when.title = `${map.deployment ?? "Deployment Missing"} · warm request of two loads per route`;
+  const tr = nodes.find((n) => n.key === state.trace);
+  const used = tr ? new Set(tr.calls.map((c) => c.endpoint)) : null;
+  const shown = nodes.filter(routeMatches).sort(ORDER[state.order]);
+  const proxy = nodes.filter((n) => n.warm?.middlewareMs != null).map((n) => n.warm.middlewareMs);
+  const g = epGroups();
+  const shellCount = new Set(map.shell).size;
+  const routeCount = new Set(nodes.map((n) => n.route)).size;
+
+  const request = column("request", 1, "Request", 3,
+    groupHtml("request", "Browser", "Globe", fixedCard("browser", "Globe", "HTTPS GET", "Signed-in Person, session cookie"), 1)
+    + groupHtml("request", map.platform?.server ?? "Server", "Cloud", fixedCard("proxy", "ShieldCheck", "Proxy", `Before every page · ${proxy.length ? `${Math.max(...proxy)} ms at most` : "Missing"}`) + fixedCard("shell", "Stack", "Shell", `Layout · ${plural(shellCount, "call")} per page`, "shell"), 2));
+  const pages = column("pages", 2, "Pages", routeCount,
+    AREAS.map((area) => { const list = shown.filter((n) => n.area === area); return list.length ? groupHtml("pages", area, areaIcon(area), list.map(routeCard).join(""), list.length) : ""; }).join(""), true);
+  const supabase = column("supabase", 3, map.platform?.database ?? "Database", g.supabase.reduce((n, [, , l]) => n + l.length, 0),
+    g.supabase.map(([name, ic, list]) => groupHtml("supabase", name, ic, list.map((e) => epCard(e, used)).join(""), list.length)).join(""));
+  const cacheName = map.cache?.name ?? "Cache";
+  const cacheGroup = map.cache || g.redis.length
+    ? groupHtml("out", cacheName, "Stack", g.redis.length ? g.redis.map((e) => epCard(e, used)).join("") : fixedCard("redis", "Stack", cacheName, "No call in this window", "redis"), g.redis.length || 1)
+    : "";
+  const out = column("out", 4, map.cache ? "Cache and providers" : "Providers", g.redis.length + g.providers.length + (map.cache && !g.redis.length ? 1 : 0),
+    cacheGroup + groupHtml("out", "Providers", "Plug", g.providers.map((e) => epCard(e, used)).join(""), g.providers.length));
+
+  board.innerHTML = `<div class="fwcols${tr ? " tracing" : ""}" style="--cols:4"><svg class="fwlinks" aria-hidden="true"></svg>${request}${pages}${supabase}${out}</div>`;
+  const keys = [...board.querySelectorAll(".grp")].map((el) => el.dataset.key);
+  document.getElementById("archCollapse").textContent = keys.length && keys.every((k) => state.collapsed.has(k)) ? "Expand all" : "Collapse all";
+  document.getElementById("archOrder").value = state.order;
+  links();
+}
+
+/* Links from a traced route to every endpoint it calls, drawn by the board's own router (drawRoutes). The page's own
+   calls are solid with an arrowhead (blk), the shell's calls dotted (lnk). */
+function links() {
+  const cols = board.querySelector(".fwcols");
+  const n = nodes.find((x) => x.key === state.trace);
+  const colEls = cols ? [...cols.querySelectorAll(".fwcol")] : [];
+  const end = (el) => ({ el, col: colEls.indexOf(el?.closest(".fwcol")) });
+  const from = n && cols?.querySelector(`.card[data-key="${CSS.escape(n.key)}"]`);
+  drawRoutes(cols, !from ? [] : [...new Set(n.calls.map((c) => c.endpoint))].map((ep) => {
+    const shell = endpoints.get(ep)?.shell;
+    return { from: end(from), to: end(cols.querySelector(`.card[data-ep="${CSS.escape(ep)}"]`)), cls: shell ? "lnk" : "blk", arrow: !shell };
+  }));
+}
+
+
+/* ---- read path column widths, kept per viewer ---- */
+const COL_LIMITS = { label: [120, 560], ms: [44, 160] };
+const widths = { label: 220, ms: 56 };
+try { Object.assign(widths, JSON.parse(localStorage.getItem("gitboard-architecture-cols") || "{}")); } catch {}
+const saveWidths = () => { try { localStorage.setItem("gitboard-architecture-cols", JSON.stringify(widths)); } catch {} };
+function setWidth(wf, col, px) {
+  widths[col] = Math.round(Math.min(COL_LIMITS[col][1], Math.max(COL_LIMITS[col][0], px)));
+  wf.style.setProperty(col === "label" ? "--wf-label" : "--wf-ms", `${widths[col]}px`);
+  wf.querySelector(`.col-grip[data-col="${col}"]`).setAttribute("aria-valuenow", widths[col]);
+}
+function wireGrips(wf) {
+  wf.querySelectorAll(".col-grip").forEach((grip) => {
+    const col = grip.dataset.col;
+    const sign = col === "label" ? 1 : -1; // the time column grows leftwards
+    grip.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      grip.setPointerCapture(e.pointerId);
+      const x0 = e.clientX, w0 = widths[col];
+      grip.dataset.drag = ""; wf.dataset.dragging = "";
+      const move = (ev) => setWidth(wf, col, w0 + sign * (ev.clientX - x0));
+      const up = () => { delete grip.dataset.drag; delete wf.dataset.dragging; grip.removeEventListener("pointermove", move); saveWidths(); };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", up, { once: true });
+      grip.addEventListener("pointercancel", up, { once: true });
+    });
+    grip.addEventListener("click", (e) => e.stopPropagation());
+    grip.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      e.preventDefault();
+      setWidth(wf, col, widths[col] + (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 64 : 16) * sign);
+      saveWidths();
+    });
+    if (col === "label") grip.addEventListener("dblclick", () => {
+      const widest = Math.max(...[...wf.querySelectorAll(".phase .lbl")].map((l) => [...l.children].reduce((w, c) => w + (c.classList.contains("pt") ? c.scrollWidth : c.getBoundingClientRect().width) + 8, 0)));
+      setWidth(wf, col, widest); saveWidths();
+    });
+  });
+}
+const grips = () => ["label", "ms"].map((col) => `<span class="col-grip" data-col="${col}" role="separator" aria-orientation="vertical" aria-label="${col === "label" ? "Name" : "Time"} column width" aria-valuemin="${COL_LIMITS[col][0]}" aria-valuemax="${COL_LIMITS[col][1]}" aria-valuenow="${widths[col]}" tabindex="0"></span>`).join("");
+
+/* A timeline list: GitBoard's phase list, one row per call, all rows on one time scale with the budget marked. */
+function timeline(rows, total) {
+  const pct = (ms) => `${Math.max(0, Math.min(100, (ms / total) * 100))}%`;
+  const step = total > 3000 ? 1000 : total > 1200 ? 250 : 100;
+  const ticks = [];
+  for (let t = 0; t <= total; t += step) ticks.push(`<span style="left:${pct(t)}">${t >= 1000 ? `${t / 1000} s` : t}</span>`);
+  return `<div class="wf" style="--wf-label:${widths.label}px;--wf-ms:${widths.ms}px">${grips()}
+    <div class="axis"><span></span><span class="ticks">${ticks.join("")}</span><span></span></div>
+    <ul class="phase-list">${rows.map((r) => `<li><${r.open ? "button" : "div"} ${r.open ? `type="button" ${r.open}` : ""} class="phase ${r.cls ?? ""}${r.open ? "" : " fixed"}">
+      <span class="lbl">${r.num ? `<span class="num">${esc(r.num)}</span>` : ""}${r.icon ? icon(r.icon) : ""}<span class="pt" title="${esc(r.name)}">${esc(r.name)}</span></span>
+      <span class="tl"><span class="budget" style="left:${pct(map.budgetMs)}"></span><i style="left:${pct(r.start)};width:${pct(r.dur)}"></i></span>
+      <span class="pf">${r.dur} ms</span></${r.open ? "button" : "div"}></li>`).join("")}</ul></div>`;
+}
+
+/* ---- details: a route's read path, an endpoint's callers, the shell, the channel cache; Back returns ---- */
+const trail = [];
+function openDetails(view, push = true) {
+  const dlg = document.getElementById("archDetails");
+  if (push) { if (!dlg.open) trail.splice(0); trail.push(view); }
+  const html = view.kind === "route" ? routeDetails(view.id) : view.kind === "ep" ? epDetails(view.id) : view.kind === "shell" ? shellDetails() : redisDetails();
+  if (!html) return;
+  const back = trail.length > 1 ? `<div class="doc-head"><button type="button" class="icon-btn" data-back aria-label="Back">${icon("CaretLeft")}</button><span class="crumb">${esc(trail[trail.length - 2].title ?? "")}</span></div>` : "";
+  dlg.classList.toggle("doc-mode", view.kind !== "redis");
+  dlg.innerHTML = `<div class="dlg"><button type="button" class="x" aria-label="Close">${icon("X")}</button>${back}${html}</div>`;
+  if (!dlg.open) dlg.showModal();
+  dlg.querySelectorAll(".wf").forEach(wireGrips);
+}
+
+function routeDetails(key) {
+  const n = nodes.find((x) => x.key === key);
+  if (!n) return "";
+  trail[trail.length - 1].title = n.label;
+  if (!n.warm) return `<h2 id="ad-title">${esc(n.label)}</h2><div class="sub">${esc(n.area)} · ${esc(n.file)}</div><p>${esc(n.noRequest)}</p>`;
+  const t = tone(n);
+  const total = Math.max(n.warm.serverMs, map.budgetMs, ...n.calls.map((c) => c.startMs + c.durMs));
+  const byWave = (a, b) => a.wave - b.wave || a.startMs - b.startMs;
+  const row = (c) => ({ num: `W${c.wave}`, icon: epIcon(c.endpoint, c.target), name: c.endpoint, start: c.startMs, dur: c.durMs, cls: `o-${c.origin}${c.target === "provider" ? " o-provider" : ""}`, open: `data-ep="${esc(c.endpoint)}"` });
+  const shell = n.calls.filter((c) => c.origin === "shell").sort(byWave).map(row);
+  const page = n.calls.filter((c) => c.origin === "page").sort(byWave).map(row);
+  const fixed = [{ icon: "Cloud", name: "Server request", start: 0, dur: n.warm.serverMs, cls: "server" }];
+  if (n.warm.middlewareMs != null) fixed.push({ icon: "ShieldCheck", name: "Proxy", start: 0, dur: n.warm.middlewareMs, cls: "server" });
+  return `<h2 id="ad-title">${esc(n.label)}</h2>
+    <div class="sub">${esc(n.area)} · ${esc(n.sample)}${n.status ? ` · HTTP ${n.status}` : ""}</div>
+    <div class="figure-row"><span class="figure">${secs(n.warm.serverMs)}</span><span class="meter bud ${t}"><i style="width:${Math.min(100, (n.warm.serverMs / (2 * map.budgetMs)) * 100)}%"></i></span>
+      <span class="phases">${plural(n.databaseCalls, "database call")} · ${plural(n.waves, "wave")}</span></div>
+    <section class="ps"><h5>${icon("Timer")}Server</h5>${timeline(fixed, total)}</section>
+    <section class="ps"><h5>${icon("Stack")}Shell · ${shell.length}</h5>${shell.length ? timeline(shell, total) : `<div class="gnote">No shell calls</div>`}</section>
+    <section class="ps"><h5>${icon(areaIcon(n.area))}Page · ${page.length}</h5>${page.length ? timeline(page, total) : `<div class="gnote">No page calls</div>`}</section>
+    <div class="gnote">Cold ${n.cold ? secs(n.cold.serverMs) : "Missing"} · avg ${n.avgMs != null ? secs(n.avgMs) : "Missing"} over ${n.count} · trace ${esc(n.warm.traceId)} · ${esc(n.file)}</div>`;
+}
+
+function epDetails(endpoint) {
+  const e = endpoints.get(endpoint);
+  if (!e) return "";
+  trail[trail.length - 1].title = epLabel(endpoint);
+  const hits = nodes.flatMap((n) => n.calls.filter((c) => c.endpoint === endpoint).map((c) => ({ n, c })))
+    // Slowest route first; a route that calls it more than once keeps its calls together, in start order.
+    .sort((a, b) => (b.n.warm?.serverMs ?? 0) - (a.n.warm?.serverMs ?? 0) || a.n.key.localeCompare(b.n.key) || a.c.startMs - b.c.startMs);
+  const total = Math.max(map.budgetMs, ...hits.map(({ c }) => c.startMs + c.durMs));
+  const rows = hits.map(({ n, c }) => ({ num: `W${c.wave}`, icon: areaIcon(n.area), name: n.label, start: c.startMs, dur: c.durMs, cls: `o-${c.origin}${c.target === "provider" ? " o-provider" : ""}`, open: `data-key="${esc(n.key)}"` }));
+  return `<h2 id="ad-title">${esc(epLabel(endpoint))}</h2>
+    <div class="sub">${epKind(e)}${e.shell ? " · Shell" : ""}${ACCESS.has(endpoint) ? " · access" : ""} · ${esc(endpoint)}</div>
+    <div class="figure-row"><span class="figure">${avgOf(e)} ms</span><span class="phases">avg per call · ${plural(e.calls, "call")} on ${plural(e.routes.size, "route")}</span></div>
+    <section class="ps"><h5>${icon("Timer")}When each route calls it</h5>${timeline(rows, total)}</section>`;
+}
+
+function shellDetails() {
+  trail[trail.length - 1].title = "Shell";
+  const list = [...endpoints.values()].filter((e) => e.shell).sort((a, b) => avgOf(b) - avgOf(a));
+  return `<h2 id="ad-title">Shell</h2><div class="sub">Layout calls, on every page that makes calls</div>
+    <section class="ps"><h5>${icon("Stack")}Calls</h5><ul class="rel">${list.map((e) => `<li><button type="button" class="relr" data-ep="${esc(e.endpoint)}"><span class="tile">${icon(epIcon(e.endpoint, e.target))}</span><span class="tx"><b>${esc(epLabel(e.endpoint))}</b><span>${epKind(e)} · ${avgOf(e)} ms avg · ${plural(e.routes.size, "route")}</span></span></button></li>`).join("")}</ul></section>`;
+}
+
+function redisDetails() {
+  const cache = map.cache ?? { name: "Cache", reader: "", readers: [] };
+  trail[trail.length - 1].title = cache.name;
+  const readers = cache.readers;
+  return `<h2 id="ad-title">${esc(cache.name)}</h2><div class="sub">${esc(cache.reader)}</div>
+    <p>No cache call on any request in this window.</p>
+    ${readers.length ? `<section class="ps"><h5>${icon("Database")}Read through ${esc(cache.reader)} in</h5><ul class="open">${readers.map((f) => `<li>${icon("Stack")}<span>${esc(f)}</span></li>`).join("")}</ul></section>` : ""}`;
+}
+
+/* ---- events ---- */
+board.addEventListener("pointerover", (e) => {
+  const c = e.target.closest(".card[data-key]");
+  const k = c ? c.dataset.key : null;
+  if (k !== state.trace) { state.trace = k; render(); }
+});
+board.addEventListener("pointerleave", () => { if (state.trace) { state.trace = null; render(); } });
+const activate = (el) => {
+  if (el.dataset.key) openDetails({ kind: "route", id: el.dataset.key });
+  else if (el.dataset.ep) openDetails({ kind: "ep", id: el.dataset.ep });
+  else if (el.dataset.open) openDetails({ kind: el.dataset.open });
+};
+board.addEventListener("click", (e) => {
+  const g = e.target.closest(".gh");
+  if (g) { const k = g.dataset.group; state.collapsed.has(k) ? state.collapsed.delete(k) : state.collapsed.add(k); saveView(); render(); return; }
+  const c = e.target.closest("[data-key], [data-ep], [data-open]");
+  if (c) activate(c);
+});
+board.addEventListener("keydown", (e) => {
+  const c = e.target.closest(".card[data-key], .card[data-ep], .card[data-open]");
+  if (c && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); activate(c); }
+});
+const dlg = document.getElementById("archDetails");
+dlg.addEventListener("click", (e) => {
+  if (e.target === dlg || e.target.closest(".x")) { dlg.close(); return; }
+  if (e.target.closest("[data-back]")) { trail.pop(); openDetails(trail[trail.length - 1], false); return; }
+  const row = e.target.closest("[data-key], [data-ep]");
+  if (row) activate(row);
+});
+document.getElementById("archQ").addEventListener("input", (e) => { state.q = e.target.value.trim().toLowerCase(); state.trace = null; render(); });
+document.getElementById("archOrder").addEventListener("change", (e) => { state.order = e.target.value; saveView(); render(); });
+document.getElementById("archCollapse").addEventListener("click", () => {
+  const keys = [...board.querySelectorAll(".grp")].map((el) => el.dataset.key);
+  const all = keys.every((k) => state.collapsed.has(k));
+  for (const k of keys) all ? state.collapsed.delete(k) : state.collapsed.add(k);
+  saveView(); render();
+});
+addEventListener("resize", links);
+
+/* ---- tabs: Roadmap first and the default; the one a viewer last chose is remembered ---- */
+const tabs = document.querySelector(".tabs");
+async function show() {
+  const res = await fetch("/api/architecture", { cache: "no-store" }).catch(() => null);
+  const body = await res?.json().catch(() => null);
+  problem = res?.ok ? null : body?.error ?? "The board server did not answer.";
+  if (!problem) {
+    try { build(body); } catch { map = null; problem = "The measure file is not one this version reads: run gitboard measure again."; }
+  }
+  render();
+}
+function setTab(name) {
+  const tab = name === "architecture" ? "architecture" : "roadmap";
+  tabs.querySelectorAll(".opt").forEach((t) => { const on = t.dataset.tab === tab; t.setAttribute("aria-selected", String(on)); t.setAttribute("aria-pressed", String(on)); });
+  document.querySelectorAll("[data-view]").forEach((el) => (el.hidden = el.dataset.view !== tab));
+  document.getElementById("scroll").hidden = tab !== "roadmap";
+  document.getElementById("archScroll").hidden = tab !== "architecture";
+  try { localStorage.setItem("gitboard-tab", tab); } catch {}
+  if (tab === "architecture") show();
+}
+tabs.hidden = false;
+const roadmapPanel = document.getElementById("scroll");
+roadmapPanel.setAttribute("role", "tabpanel");
+roadmapPanel.setAttribute("aria-labelledby", "tab-roadmap");
+tabs.addEventListener("click", (e) => { const t = e.target.closest(".opt"); if (t) setTab(t.dataset.tab); });
+let saved = null;
+try { saved = localStorage.getItem("gitboard-tab"); } catch {}
+setTab(saved);
+})();
 </script>
 </body>
 </html>

@@ -1,0 +1,30 @@
+# Typecheck, build and test on every push and pull request: Node 22.12 (the oldest supported) and the current
+# release, on Linux and macOS. `npm ci` builds through `prepare`, so the CLI tests run against a fresh dist/.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: ["22.12", "current"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: git config --global user.email ci@example.com && git config --global user.name CI
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
