@@ -10,9 +10,10 @@ GitBoard Canvas is a local tool. It reads and writes one git repository on your 
 - Writes accept JSON only, up to 16 KB. Errors never carry a stack trace.
 - Rendered markdown escapes raw HTML.
 - The only network use is `gh`, which reads open pull requests when it is installed and signed in. Set `github` to `false` to stop that.
+- `gitboard measure` runs only when you call it. It reads traces through `gcx` and, when `architecture.site` is set, sends a `HEAD` request to that site. The board serves the file it writes, `architecture.data`, only when that path resolves inside the repo.
 - It never pushes, never force-updates a branch, never stashes or resets, and never touches another worktree's files.
 
-Hooks (`hooks.onEnter`) and `lint.command` run shell commands. They are code the repo owner wrote in `gitboard.config.json`, and they run with your permissions. Treat that file like any build script: review changes to it, and do not run GitBoard Canvas in a repo whose config you do not trust.
+Hooks (`hooks.onEnter`), `lint.command` and `architecture.routesCommand` run shell commands. They are code the repo owner wrote in `gitboard.config.json`, and they run with your permissions. Treat that file like any build script: review changes to it, and do not run GitBoard Canvas in a repo whose config you do not trust.
 
 Out of scope: someone with local access to your machine or your repo, and malicious hook commands that you chose to run.
 

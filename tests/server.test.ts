@@ -7,6 +7,7 @@ import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { DEFAULT_ARCHITECTURE } from "../src/architecture/config.js";
 import { DEFAULT_CONFIG } from "../src/config.js";
 import { clientMessage, createBoardServer } from "../src/server.js";
 
@@ -118,6 +119,48 @@ describe("board server", () => {
 		expect(ok.body).not.toContain("<script>");
 		for (const p of ["secret.md", "roadmap/../secret.md", "roadmap/3.open/../../secret.md", "/etc/passwd"]) {
 			expect((await request(`/api/doc?path=${encodeURIComponent(p)}`)).status).toBe(404);
+		}
+	});
+});
+
+describe("architecture", () => {
+	it("hides the tab and answers 404 when the config has no architecture block", async () => {
+		expect((await request("/")).body).toContain("const ARCHITECTURE = false;");
+		const res = await request("/api/architecture");
+		expect(res.status).toBe(404);
+		expect(JSON.parse(res.body).error).toBe("No architecture block in gitboard.config.json.");
+	});
+
+	it("serves the data file, 404 before the first measure, and refuses a foreign Host", async () => {
+		const archPort = port + 1;
+		const architecture = { ...DEFAULT_ARCHITECTURE, data: "maps/live.json" };
+		const arch = createBoardServer({ root: dir, config: { ...DEFAULT_CONFIG, github: false, architecture }, port: archPort, refreshMs: 0, log: () => {} });
+		const archServer = http.createServer(arch.handle);
+		await new Promise<void>((resolve) => archServer.listen(archPort, "127.0.0.1", resolve));
+		const get = (pathname: string, host = `127.0.0.1:${archPort}`) =>
+			new Promise<{ status: number; body: string }>((resolve, reject) => {
+				http
+					.get({ host: "127.0.0.1", port: archPort, path: pathname, headers: { host } }, (res) => {
+						let body = "";
+						res.on("data", (c) => (body += c));
+						res.on("end", () => resolve({ status: res.statusCode ?? 0, body }));
+					})
+					.on("error", reject);
+			});
+		try {
+			expect((await get("/")).body).toContain("const ARCHITECTURE = true;");
+			const none = await get("/api/architecture");
+			expect(none.status).toBe(404);
+			expect(JSON.parse(none.body).error).toBe("No measure yet: run gitboard measure --from <iso>.");
+			fs.mkdirSync(path.join(dir, "maps"), { recursive: true });
+			fs.writeFileSync(path.join(dir, "maps/live.json"), JSON.stringify({ routes: [{ route: "/" }] }));
+			const ok = await get("/api/architecture");
+			expect(ok.status).toBe(200);
+			expect(JSON.parse(ok.body).routes[0].route).toBe("/");
+			expect((await get("/api/architecture", `evil.example:${archPort}`)).status).toBe(403);
+		} finally {
+			arch.close();
+			archServer.close();
 		}
 	});
 });

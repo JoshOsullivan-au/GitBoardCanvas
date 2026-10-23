@@ -2,6 +2,15 @@
 
 Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
+## Unreleased
+
+### Added
+
+- Architecture tab beside the Roadmap board, shown when `gitboard.config.json` has an `architecture` block. It lays out every page the app serves (request, pages, database, cache and providers), with each page's warm server time against a budget, its calls and their waves, a hover trace drawn with the board's own link routing, and a read path per page and per endpoint.
+- `gitboard measure --from <iso> [--to <iso>]` reads the live pages of a Next.js app router from Grafana Tempo through `gcx` and writes the tab's data file.
+- `GET /api/architecture` serves that file.
+- Icons `Buildings`, `Door`, `House`, `Plug`, `Stethoscope`, `Storefront`, `SunHorizon`, `Timer` and `UserCircle`.
+
 ## 0.1.2 (22/10/2026)
 
 ### Fixed

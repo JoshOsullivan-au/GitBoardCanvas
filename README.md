@@ -137,6 +137,7 @@ GitBoard Canvas never pushes, force-updates, stashes or resets, and never touche
 | `gitboard lint` | Checks the lifecycle folder. | 0 clean, 1 problems |
 | `gitboard list [--json]` | Prints every feature by stage. | 0 |
 | `gitboard init` | Creates the lifecycle folder, templates and config. | 0 |
+| `gitboard measure --from <iso> [--to <iso>]` | Reads the live pages from Grafana Tempo and writes the Architecture tab's data. Needs an `architecture` block and `gcx`. | 0 written, 1 refused |
 | `gitboard --version`, `gitboard --help` | Prints the version or usage. | 0 |
 
 ## For coding agents
@@ -162,9 +163,13 @@ Every key in `gitboard.config.json` is optional. This example sets the main bran
 
 All keys, defaults and hook recipes are in [docs/configuration.md](docs/configuration.md).
 
+### Architecture tab
+
+Add an `architecture` block and the board gets a second tab beside the Roadmap: every page your Next.js app serves, its server time against a budget, and the database, cache and provider calls it makes, read from Grafana Tempo by `gitboard measure`. See [architecture](docs/configuration.md#architecture).
+
 ## Security
 
-The board listens on `127.0.0.1` and `::1` only. It checks the Host header on every request and the Origin header on every write. It makes no network calls except `gh` for pull requests. Hook and lint commands come from your own config and run on your machine. See [SECURITY.md](SECURITY.md).
+The board listens on `127.0.0.1` and `::1` only. It checks the Host header on every request and the Origin header on every write. It makes no network calls except `gh` for pull requests. `gitboard measure`, which you run yourself, also calls `gcx` and, when `architecture.site` is set, sends a `HEAD` request to that site. Hook and lint commands come from your own config and run on your machine. See [SECURITY.md](SECURITY.md).
 
 ## Documentation
 

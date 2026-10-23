@@ -64,6 +64,33 @@ describe("loadConfig", () => {
 		expect(() => loadConfig(root)).toThrow(/groups\[0\]/);
 	});
 
+	it("leaves the Architecture tab off without an architecture block", () => {
+		expect(loadConfig(root).architecture).toBeNull();
+	});
+
+	it("fills an architecture block from the defaults", () => {
+		put({ architecture: { budgetMs: 300, tempo: { datasource: "d", service: "svc" } } });
+		const a = loadConfig(root).architecture;
+		expect(a?.budgetMs).toBe(300);
+		expect(a?.data).toBe(".gitboard/architecture.json");
+		expect(a?.tempo).toEqual({ datasource: "d", service: "svc", region: null });
+	});
+
+	it.each([
+		[{ architecture: [] }, /architecture must be an object/],
+		[{ architecture: { budgetMs: 0 } }, /architecture\.budgetMs must be a positive whole number/],
+		[{ architecture: { data: "../out.json" } }, /architecture\.data must be a repo-relative file/],
+		[{ architecture: { areas: [{ name: "A", match: "(" }] } }, /architecture area "A" has an invalid match pattern/],
+	])("rejects architecture %j", (value, message) => {
+		put(value);
+		expect(() => loadConfig(root)).toThrow(message);
+	});
+
+	it("reports architecture problems with the other keys", () => {
+		put({ github: 1, architecture: { budgetMs: -1 } });
+		expect(() => loadConfig(root)).toThrow(/github must be true or false; architecture\.budgetMs/);
+	});
+
 	it("accepts a full valid file", () => {
 		put({
 			roadmapDir: "roadmap",

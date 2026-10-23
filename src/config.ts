@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { type ArchitectureConfig, architectureConfig } from "./architecture/config.js";
 import type { Stage } from "./types.js";
 
 export const CONFIG_FILE = "gitboard.config.json";
@@ -38,6 +39,8 @@ export type GitBoardConfig = {
 	hooks: { onEnter: Record<string, string[]> };
 	/** Read open pull requests through the GitHub CLI (`gh`). */
 	github: boolean;
+	/** The Architecture tab: null (no tab) unless the file has an `architecture` block, which overlays `DEFAULT_ARCHITECTURE`. */
+	architecture: ArchitectureConfig | null;
 };
 
 export const DEFAULT_STAGES: { folder: string; name: string }[] = [
@@ -60,6 +63,7 @@ export const DEFAULT_CONFIG: GitBoardConfig = {
 	lint: { builtin: true, command: null, phaseHeadings: [], readmeSections: [] },
 	hooks: { onEnter: {} },
 	github: true,
+	architecture: null,
 };
 
 const STAGE_FOLDER = /^[1-9]\.[a-z0-9][a-z0-9-]*$/;
@@ -141,6 +145,13 @@ function checkShape(raw: unknown): string[] {
 					if (!isStrings(v)) e.push(`hooks.onEnter["${k}"] must be an array of strings`);
 		}
 	}
+	if (raw.architecture !== undefined) {
+		try {
+			architectureConfig(raw.architecture);
+		} catch (error) {
+			e.push((error as Error).message);
+		}
+	}
 	return e;
 }
 
@@ -169,6 +180,7 @@ export function loadConfig(root: string): GitBoardConfig {
 		...user,
 		lint: { ...DEFAULT_CONFIG.lint, ...(user.lint ?? {}) },
 		hooks: { onEnter: { ...(user.hooks?.onEnter ?? {}) } },
+		architecture: user.architecture === undefined ? null : architectureConfig(user.architecture),
 	};
 	config.roadmapDir = normaliseDir(config.roadmapDir);
 	validateConfig(config);

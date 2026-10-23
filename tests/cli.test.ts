@@ -46,3 +46,86 @@ describe("cli", () => {
 		expect(board.cards).toHaveLength(300);
 	});
 });
+
+/** A stand-in for Grafana's `gcx` CLI: two page requests for `/` in Tempo, each with one Supabase call. */
+function fakeGcx(bin: string): void {
+	const attr = (key: string, v: string | number) => ({ key, value: typeof v === "number" ? { intValue: String(v) } : { stringValue: v } });
+	const ms = (n: number) => String(n * 1e6);
+	const trace = (server: [number, number], call: [number, number]) => ({
+		trace: {
+			resourceSpans: [
+				{
+					resource: { attributes: [attr("service.name", "web")] },
+					scopeSpans: [
+						{
+							spans: [
+								{ spanId: "s", name: "GET /", kind: "SPAN_KIND_SERVER", startTimeUnixNano: ms(server[0]), endTimeUnixNano: ms(server[1]), attributes: [attr("http.target", "/"), attr("http.status_code", 200)] },
+								{ spanId: "c", parentSpanId: "s", name: "fetch POST", kind: "SPAN_KIND_CLIENT", startTimeUnixNano: ms(call[0]), endTimeUnixNano: ms(call[1]), attributes: [attr("http.url", "https://abc.supabase.co/rest/v1/rpc/permit"), attr("http.method", "POST")] },
+							],
+						},
+					],
+				},
+			],
+		},
+	});
+	const answers = {
+		query: { traces: [{ traceID: "t1" }, { traceID: "t2" }] },
+		t1: trace([1000, 1400], [1010, 1030]),
+		t2: trace([5000, 5180], [5010, 5030]),
+		avg: { series: [{ labels: [{ key: "name", value: { stringValue: "GET /" } }], value: 0.29 }] },
+		count: { series: [{ labels: [{ key: "name", value: { stringValue: "GET /" } }], value: 2 }] },
+	};
+	fs.mkdirSync(bin, { recursive: true });
+	fs.writeFileSync(
+		path.join(bin, "gcx"),
+		`#!${process.execPath}
+const a = process.argv.slice(2), answers = ${JSON.stringify(answers)};
+const out = a[1] === "query" ? answers.query : a[1] === "get" ? answers[a[2]] : a[2].includes("avg_over_time") ? answers.avg : answers.count;
+process.stdout.write('{"class":"hint","text":"agent hint"}\\n' + JSON.stringify(out));
+`,
+		{ mode: 0o755 },
+	);
+}
+
+describe("cli measure", () => {
+	const run = (...args: string[]) =>
+		spawnSync(process.execPath, [CLI, "measure", ...args], {
+			cwd: root,
+			encoding: "utf8",
+			env: { ...process.env, PATH: `${path.join(root, ".bin")}${path.delimiter}${process.env.PATH}` },
+		});
+	const configure = (architecture: unknown) => fs.writeFileSync(path.join(root, "gitboard.config.json"), JSON.stringify({ architecture }));
+
+	it("refuses without an architecture block", () => {
+		const out = run("--from", "2026-10-23T00:00:00Z");
+		expect(out.status).toBe(1);
+		expect(out.stderr).toContain("no architecture block in gitboard.config.json");
+	});
+
+	it("needs --from", () => {
+		configure({ tempo: { datasource: "d", service: "web" } });
+		const out = run();
+		expect(out.status).toBe(1);
+		expect(out.stderr).toContain("Usage: gitboard measure --from <iso> [--to <iso>]");
+	});
+
+	it("reads every live route from Tempo and writes the data file", () => {
+		for (const page of ["app/page.tsx", "app/home/page.tsx"]) {
+			fs.mkdirSync(path.dirname(path.join(root, page)), { recursive: true });
+			fs.writeFileSync(path.join(root, page), "");
+		}
+		fakeGcx(path.join(root, ".bin"));
+		configure({ tempo: { datasource: "d", service: "web" }, budgetMs: 200 });
+		const out = run("--from", "2026-10-23T00:00:00Z", "--to", "2026-10-23T01:00:00Z");
+		expect(out.stderr).toContain("1 of 2 live routes measured, 1 with no request; wrote .gitboard/architecture.json");
+		expect(out.status).toBe(0);
+		const map = JSON.parse(fs.readFileSync(path.join(root, ".gitboard/architecture.json"), "utf8"));
+		expect(map.window).toEqual({ from: "2026-10-23T00:00:00Z", to: "2026-10-23T01:00:00Z" });
+		expect(map.shell).toEqual(["rpc permit"]);
+		const [home, slash] = [map.routes.find((r: { route: string }) => r.route === "/home"), map.routes.find((r: { route: string }) => r.route === "/")];
+		expect(home).toMatchObject({ samples: [], noRequest: "No request in the window", count: 0 });
+		expect(slash).toMatchObject({ avgMs: 290, count: 2 });
+		expect(slash.samples[0]).toMatchObject({ sample: "/", status: 200, waves: 1, databaseCalls: 1, warm: { traceId: "t2", serverMs: 180 }, cold: { traceId: "t1", serverMs: 400 } });
+		expect(slash.samples[0].calls).toEqual([{ endpoint: "rpc permit", target: "rpc", method: "POST", startMs: 10, durMs: 20, wave: 1, origin: "shell" }]);
+	});
+});
