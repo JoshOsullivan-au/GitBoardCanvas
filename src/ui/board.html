@@ -1434,19 +1434,28 @@ if (!ARCHITECTURE) return;
 const secs = (ms) => (ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${ms} ms`);
 const hhmm = (iso) => new Date(iso).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", hour12: false });
 
-/* Areas, access endpoints, provider names and the cache come from the host's gitboard.config.json, through the data. */
+/* Areas, access endpoints, provider names, call targets and the cache come from the host's gitboard.config.json,
+   through the data. A target says which column its calls land in (database, cache or provider), their group, label and
+   icon; a call whose target the data does not describe is a provider. */
 let AREAS = [];
 let AREA_ICON = {};
 let ACCESS = new Set();
 let PROVIDERS = {};
-const areaIcon = (area) => (ICONS && ICONS[AREA_ICON[area]] ? AREA_ICON[area] : "Stack");
-const TARGET_ICON = { auth: "ShieldCheck", rpc: "Lightning", table: "Database", storage: "Stack", redis: "Stack", provider: "Plug" };
-const epLabel = (endpoint) => {
-  const host = endpoint.split(" ")[0];
-  return PROVIDERS[host] ? `${PROVIDERS[host]} ${endpoint.slice(host.length + 1)}` : endpoint.replace(/^(rpc|table|auth|storage) /, "");
+let TARGETS = {};
+const known = (name) => Boolean(name && ICONS && ICONS[name]);
+const areaIcon = (area) => (known(AREA_ICON[area]) ? AREA_ICON[area] : "Stack");
+const KIND_ICON = { database: "Database", cache: "Stack", provider: "Plug" };
+const OTHER = { kind: "provider", group: "Providers", label: "Provider", icon: null, prefix: "" };
+const info = (target) => (Object.hasOwn(TARGETS, target) ? TARGETS[target] : OTHER);
+const kindOf = (target) => info(target).kind;
+const epLabel = (e) => {
+  const host = e.endpoint.split(" ")[0];
+  const { prefix } = info(e.target);
+  return PROVIDERS[host] ? `${PROVIDERS[host]} ${e.endpoint.slice(host.length + 1)}` : prefix && e.endpoint.startsWith(prefix) ? e.endpoint.slice(prefix.length) : e.endpoint;
 };
-const epKind = (e) => (e.target === "rpc" ? "RPC" : e.target === "table" ? "Table" : e.target === "auth" ? "Auth" : e.target === "storage" ? "Storage" : e.target === "redis" ? "Cache" : "Provider");
-const epIcon = (endpoint, target) => (ACCESS.has(endpoint) ? "ShieldCheck" : TARGET_ICON[target]);
+const epKind = (e) => info(e.target).label;
+const targetIcon = (target) => (known(info(target).icon) ? info(target).icon : KIND_ICON[kindOf(target)] ?? "Plug");
+const epIcon = (endpoint, target) => (ACCESS.has(endpoint) ? "ShieldCheck" : targetIcon(target));
 
 let map = null;
 /* Why the tab has nothing to draw: the server's reason (no measure yet, a file that is not a measure), or no answer. */
@@ -1467,6 +1476,7 @@ function build(data) {
   AREA_ICON = Object.fromEntries(data.areas.filter((a) => a.icon).map((a) => [a.name, a.icon]));
   ACCESS = new Set(data.access ?? []);
   PROVIDERS = data.providers ?? {};
+  TARGETS = data.targets ?? {};
   nodes = [];
   endpoints = new Map();
   const shell = new Set(data.shell);
@@ -1515,15 +1525,16 @@ function epCard(e, used) {
   const dim = used && !used.has(e.endpoint);
   const on = used && used.has(e.endpoint);
   return `<div class="card ep lg lg-regular${e.shell ? " shell" : ""}${ACCESS.has(e.endpoint) ? " access" : ""}${on ? " on" : ""}${dim ? " off" : ""}" data-ep="${esc(e.endpoint)}" role="button" tabindex="0" aria-label="${esc(`${e.endpoint}, ${e.routes.size} routes, average ${avgOf(e)} ms`)}">
-    <span class="tile">${icon(epIcon(e.endpoint, e.target))}</span><span class="tx"><b>${esc(epLabel(e.endpoint))}</b><span>${plural(e.routes.size, "route")} · ${plural(e.calls, "call")} · ${avgOf(e)} ms avg</span></span><span class="st"></span></div>`;
+    <span class="tile">${icon(epIcon(e.endpoint, e.target))}</span><span class="tx"><b>${esc(epLabel(e))}</b><span>${plural(e.routes.size, "route")} · ${plural(e.calls, "call")} · ${avgOf(e)} ms avg</span></span><span class="st"></span></div>`;
 }
 
 function fixedCard(id, iconName, title, sub, open) {
   return `<div class="card lg lg-regular" data-fixed="${id}"${open ? ` data-open="${open}" role="button" tabindex="0"` : ""}><span class="tile">${icon(iconName)}</span><span class="tx"><b>${esc(title)}</b><span>${esc(sub)}</span></span><span class="st">${open ? icon("CaretRight") : ""}</span></div>`;
 }
 
-function groupHtml(col, name, iconName, cardsHtml, count) {
-  const key = `${col}|${name}`;
+/* `id` keeps a built-in group's collapse state apart from a configured group with the same heading. */
+function groupHtml(col, name, iconName, cardsHtml, count, id = name) {
+  const key = `${col}|${id}`;
   const open = !state.collapsed.has(key);
   return `<div class="grp${count ? "" : " empty"}"${open ? "" : " data-collapsed"} data-key="${esc(key)}">
     <button type="button" class="gh" data-group="${esc(key)}" aria-expanded="${open}"><span class="car">${icon("CaretRight")}</span><span class="gi">${icon(iconName)}</span><span class="gn">${esc(name)}</span><span class="pill">${count}</span></button>
@@ -1535,20 +1546,29 @@ function column(id, sn, name, count, groups, now) {
   return `<section class="fwcol lg lg-clear${now ? " now" : ""}" data-col="${id}" aria-label="${sn} ${esc(name)}"><header class="fwsh lg lg-regular"><div class="t"><span class="sn">${sn}</span>${esc(name)}</div><span class="cnt">${count}</span></header>${groups}</section>`;
 }
 
-/* The database, cache and provider groups. */
+/* The database, cache and provider groups. Database and provider calls group by their target's group, in the order
+   the config's rules name them; providers end with the group of calls no rule describes. Empty groups are dropped, but
+   a column with no provider call still shows that last group, empty. The cache column has one group, its cache. */
+function groupNames(kind) {
+  const out = new Map();
+  for (const [id, t] of Object.entries(TARGETS)) if (t.kind === kind && !out.has(t.group)) out.set(t.group, targetIcon(id));
+  if (kind === "provider" && !out.has(OTHER.group)) out.set(OTHER.group, KIND_ICON.provider);
+  return [...out];
+}
 function epGroups() {
   const all = [...endpoints.values()].filter(epMatches);
   const sort = (list) => list.sort((a, b) => b.routes.size - a.routes.size || a.endpoint.localeCompare(b.endpoint));
+  const grouped = (kind, list) => groupNames(kind).map(([name, ic]) => [name, ic, sort(list.filter((e) => info(e.target).group === name))]);
+  const database = all.filter((e) => kindOf(e.target) === "database");
+  const providers = grouped("provider", all.filter((e) => kindOf(e.target) === "provider"));
   return {
-    supabase: [
-      ["Shell", "Stack", sort(all.filter((e) => e.shell && e.target !== "provider" && e.target !== "redis"))],
-      ["Access checks", "ShieldCheck", sort(all.filter((e) => !e.shell && ACCESS.has(e.endpoint)))],
-      ["RPCs", "Lightning", sort(all.filter((e) => !e.shell && e.target === "rpc" && !ACCESS.has(e.endpoint)))],
-      ["Tables", "Database", sort(all.filter((e) => !e.shell && e.target === "table"))],
-      ["Auth and Storage", "ShieldCheck", sort(all.filter((e) => !e.shell && (e.target === "auth" || e.target === "storage")))],
+    database: [
+      ["Shell", "Stack", sort(database.filter((e) => e.shell)), ":shell"],
+      ["Access checks", "ShieldCheck", sort(all.filter((e) => !e.shell && ACCESS.has(e.endpoint))), ":access"],
+      ...grouped("database", database.filter((e) => !e.shell && !ACCESS.has(e.endpoint))),
     ].filter(([, , list]) => list.length),
-    providers: sort(all.filter((e) => e.target === "provider")),
-    redis: sort(all.filter((e) => e.target === "redis")),
+    providers: providers.some(([, , list]) => list.length) ? providers.filter(([, , list]) => list.length) : providers.filter(([name]) => name === OTHER.group),
+    cache: sort(all.filter((e) => kindOf(e.target) === "cache")),
   };
 }
 
@@ -1572,16 +1592,17 @@ function render() {
     + groupHtml("request", map.platform?.server ?? "Server", "Cloud", fixedCard("proxy", "ShieldCheck", "Proxy", `Before every page · ${proxy.length ? `${Math.max(...proxy)} ms at most` : "Missing"}`) + fixedCard("shell", "Stack", "Shell", `Layout · ${plural(shellCount, "call")} per page`, "shell"), 2));
   const pages = column("pages", 2, "Pages", routeCount,
     AREAS.map((area) => { const list = shown.filter((n) => n.area === area); return list.length ? groupHtml("pages", area, areaIcon(area), list.map(routeCard).join(""), list.length) : ""; }).join(""), true);
-  const supabase = column("supabase", 3, map.platform?.database ?? "Database", g.supabase.reduce((n, [, , l]) => n + l.length, 0),
-    g.supabase.map(([name, ic, list]) => groupHtml("supabase", name, ic, list.map((e) => epCard(e, used)).join(""), list.length)).join(""));
-  const cacheName = map.cache?.name ?? "Cache";
-  const cacheGroup = map.cache || g.redis.length
-    ? groupHtml("out", cacheName, "Stack", g.redis.length ? g.redis.map((e) => epCard(e, used)).join("") : fixedCard("redis", "Stack", cacheName, "No call in this window", "redis"), g.redis.length || 1)
+  const database = column("database", 3, map.platform?.database ?? "Database", g.database.reduce((n, [, , l]) => n + l.length, 0),
+    g.database.map(([name, ic, list, id]) => groupHtml("database", name, ic, list.map((e) => epCard(e, used)).join(""), list.length, id)).join(""));
+  const cacheName = map.cache?.name ?? Object.values(TARGETS).find((t) => t.kind === "cache")?.group ?? "Cache";
+  const cacheGroup = map.cache || g.cache.length
+    ? groupHtml("out", cacheName, "Stack", g.cache.length ? g.cache.map((e) => epCard(e, used)).join("") : fixedCard("cache", "Stack", cacheName, "No call in this window", "cache"), g.cache.length || 1, ":cache")
     : "";
-  const out = column("out", 4, map.cache ? "Cache and providers" : "Providers", g.redis.length + g.providers.length + (map.cache && !g.redis.length ? 1 : 0),
-    cacheGroup + groupHtml("out", "Providers", "Plug", g.providers.map((e) => epCard(e, used)).join(""), g.providers.length));
+  const providerCount = g.providers.reduce((n, [, , l]) => n + l.length, 0);
+  const out = column("out", 4, map.cache ? "Cache and providers" : "Providers", g.cache.length + providerCount + (map.cache && !g.cache.length ? 1 : 0),
+    cacheGroup + g.providers.map(([name, ic, list]) => groupHtml("out", name, ic, list.map((e) => epCard(e, used)).join(""), list.length)).join(""));
 
-  board.innerHTML = `<div class="fwcols${tr ? " tracing" : ""}" style="--cols:4"><svg class="fwlinks" aria-hidden="true"></svg>${request}${pages}${supabase}${out}</div>`;
+  board.innerHTML = `<div class="fwcols${tr ? " tracing" : ""}" style="--cols:4"><svg class="fwlinks" aria-hidden="true"></svg>${request}${pages}${database}${out}</div>`;
   const keys = [...board.querySelectorAll(".grp")].map((el) => el.dataset.key);
   document.getElementById("archCollapse").textContent = keys.length && keys.every((k) => state.collapsed.has(k)) ? "Expand all" : "Collapse all";
   document.getElementById("archOrder").value = state.order;
@@ -1657,15 +1678,15 @@ function timeline(rows, total) {
       <span class="pf">${r.dur} ms</span></${r.open ? "button" : "div"}></li>`).join("")}</ul></div>`;
 }
 
-/* ---- details: a route's read path, an endpoint's callers, the shell, the channel cache; Back returns ---- */
+/* ---- details: a route's read path, an endpoint's callers, the shell, the cache; Back returns ---- */
 const trail = [];
 function openDetails(view, push = true) {
   const dlg = document.getElementById("archDetails");
   if (push) { if (!dlg.open) trail.splice(0); trail.push(view); }
-  const html = view.kind === "route" ? routeDetails(view.id) : view.kind === "ep" ? epDetails(view.id) : view.kind === "shell" ? shellDetails() : redisDetails();
+  const html = view.kind === "route" ? routeDetails(view.id) : view.kind === "ep" ? epDetails(view.id) : view.kind === "shell" ? shellDetails() : cacheDetails();
   if (!html) return;
   const back = trail.length > 1 ? `<div class="doc-head"><button type="button" class="icon-btn" data-back aria-label="Back">${icon("CaretLeft")}</button><span class="crumb">${esc(trail[trail.length - 2].title ?? "")}</span></div>` : "";
-  dlg.classList.toggle("doc-mode", view.kind !== "redis");
+  dlg.classList.toggle("doc-mode", view.kind !== "cache");
   dlg.innerHTML = `<div class="dlg"><button type="button" class="x" aria-label="Close">${icon("X")}</button>${back}${html}</div>`;
   if (!dlg.open) dlg.showModal();
   dlg.querySelectorAll(".wf").forEach(wireGrips);
@@ -1679,7 +1700,7 @@ function routeDetails(key) {
   const t = tone(n);
   const total = Math.max(n.warm.serverMs, map.budgetMs, ...n.calls.map((c) => c.startMs + c.durMs));
   const byWave = (a, b) => a.wave - b.wave || a.startMs - b.startMs;
-  const row = (c) => ({ num: `W${c.wave}`, icon: epIcon(c.endpoint, c.target), name: c.endpoint, start: c.startMs, dur: c.durMs, cls: `o-${c.origin}${c.target === "provider" ? " o-provider" : ""}`, open: `data-ep="${esc(c.endpoint)}"` });
+  const row = (c) => ({ num: `W${c.wave}`, icon: epIcon(c.endpoint, c.target), name: c.endpoint, start: c.startMs, dur: c.durMs, cls: `o-${c.origin}${kindOf(c.target) === "provider" ? " o-provider" : ""}`, open: `data-ep="${esc(c.endpoint)}"` });
   const shell = n.calls.filter((c) => c.origin === "shell").sort(byWave).map(row);
   const page = n.calls.filter((c) => c.origin === "page").sort(byWave).map(row);
   const fixed = [{ icon: "Cloud", name: "Server request", start: 0, dur: n.warm.serverMs, cls: "server" }];
@@ -1697,14 +1718,14 @@ function routeDetails(key) {
 function epDetails(endpoint) {
   const e = endpoints.get(endpoint);
   if (!e) return "";
-  trail[trail.length - 1].title = epLabel(endpoint);
+  trail[trail.length - 1].title = epLabel(e);
   const hits = nodes.flatMap((n) => n.calls.filter((c) => c.endpoint === endpoint).map((c) => ({ n, c })))
     // Slowest route first; a route that calls it more than once keeps its calls together, in start order.
     .sort((a, b) => (b.n.warm?.serverMs ?? 0) - (a.n.warm?.serverMs ?? 0) || a.n.key.localeCompare(b.n.key) || a.c.startMs - b.c.startMs);
   const total = Math.max(map.budgetMs, ...hits.map(({ c }) => c.startMs + c.durMs));
-  const rows = hits.map(({ n, c }) => ({ num: `W${c.wave}`, icon: areaIcon(n.area), name: n.label, start: c.startMs, dur: c.durMs, cls: `o-${c.origin}${c.target === "provider" ? " o-provider" : ""}`, open: `data-key="${esc(n.key)}"` }));
-  return `<h2 id="ad-title">${esc(epLabel(endpoint))}</h2>
-    <div class="sub">${epKind(e)}${e.shell ? " · Shell" : ""}${ACCESS.has(endpoint) ? " · access" : ""} · ${esc(endpoint)}</div>
+  const rows = hits.map(({ n, c }) => ({ num: `W${c.wave}`, icon: areaIcon(n.area), name: n.label, start: c.startMs, dur: c.durMs, cls: `o-${c.origin}${kindOf(c.target) === "provider" ? " o-provider" : ""}`, open: `data-key="${esc(n.key)}"` }));
+  return `<h2 id="ad-title">${esc(epLabel(e))}</h2>
+    <div class="sub">${esc(epKind(e))}${e.shell ? " · Shell" : ""}${ACCESS.has(endpoint) ? " · access" : ""} · ${esc(endpoint)}</div>
     <div class="figure-row"><span class="figure">${avgOf(e)} ms</span><span class="phases">avg per call · ${plural(e.calls, "call")} on ${plural(e.routes.size, "route")}</span></div>
     <section class="ps"><h5>${icon("Timer")}When each route calls it</h5>${timeline(rows, total)}</section>`;
 }
@@ -1713,10 +1734,10 @@ function shellDetails() {
   trail[trail.length - 1].title = "Shell";
   const list = [...endpoints.values()].filter((e) => e.shell).sort((a, b) => avgOf(b) - avgOf(a));
   return `<h2 id="ad-title">Shell</h2><div class="sub">Layout calls, on every page that makes calls</div>
-    <section class="ps"><h5>${icon("Stack")}Calls</h5><ul class="rel">${list.map((e) => `<li><button type="button" class="relr" data-ep="${esc(e.endpoint)}"><span class="tile">${icon(epIcon(e.endpoint, e.target))}</span><span class="tx"><b>${esc(epLabel(e.endpoint))}</b><span>${epKind(e)} · ${avgOf(e)} ms avg · ${plural(e.routes.size, "route")}</span></span></button></li>`).join("")}</ul></section>`;
+    <section class="ps"><h5>${icon("Stack")}Calls</h5><ul class="rel">${list.map((e) => `<li><button type="button" class="relr" data-ep="${esc(e.endpoint)}"><span class="tile">${icon(epIcon(e.endpoint, e.target))}</span><span class="tx"><b>${esc(epLabel(e))}</b><span>${esc(epKind(e))} · ${avgOf(e)} ms avg · ${plural(e.routes.size, "route")}</span></span></button></li>`).join("")}</ul></section>`;
 }
 
-function redisDetails() {
+function cacheDetails() {
   const cache = map.cache ?? { name: "Cache", reader: "", readers: [] };
   trail[trail.length - 1].title = cache.name;
   const readers = cache.readers;

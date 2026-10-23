@@ -10,6 +10,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 // The built CLI, as installed users run it. `npm ci` builds it through `prepare`.
 const CLI = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dist", "cli.js");
+/** The example preset in the docs, whose rules name the fake trace's call `rpc permit`. */
+const PRESET = JSON.parse(fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "docs", "presets", "supabase-vercel-redis.json"), "utf8"));
 const sh = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
 
 let root: string;
@@ -116,7 +118,7 @@ describe("cli measure", () => {
 			fs.writeFileSync(path.join(root, page), "");
 		}
 		fakeGcx(path.join(root, ".bin"));
-		configure({ tempo: { datasource: "d", service: "web" }, budgetMs: 200 });
+		configure({ ...PRESET, tempo: { datasource: "d", service: "web" }, budgetMs: 200 });
 		const out = run("--from", "2026-10-23T00:00:00Z", "--to", "2026-10-23T01:00:00Z");
 		expect(out.stderr).toContain("1 of 2 live routes measured, 1 with no request; wrote .gitboard/architecture.json");
 		expect(out.status).toBe(0);
@@ -128,23 +130,38 @@ describe("cli measure", () => {
 		expect(slash).toMatchObject({ avgMs: 290, count: 2 });
 		expect(slash.samples[0]).toMatchObject({ sample: "/", status: 200, waves: 1, databaseCalls: 1, warm: { traceId: "t2", serverMs: 180 }, cold: { traceId: "t1", serverMs: 400 } });
 		expect(slash.samples[0].calls).toEqual([{ endpoint: "rpc permit", target: "rpc", method: "POST", startMs: 10, durMs: 20, wave: 1, origin: "shell" }]);
+		expect(map.format).toBe(2);
+		expect(map.platform).toEqual({ server: "Vercel", database: "Supabase" });
+		expect(map.targets.rpc).toEqual({ kind: "database", group: "RPCs", label: "RPC", icon: "Lightning", prefix: "rpc " });
+	});
+
+	it("without call rules, counts the same call as a provider and names no database", () => {
+		fs.mkdirSync(path.join(root, "app"), { recursive: true });
+		fs.writeFileSync(path.join(root, "app/page.tsx"), "");
+		fakeGcx(path.join(root, ".bin"));
+		configure({ tempo: { datasource: "d", service: "web" } });
+		expect(run("--from", "2026-10-23T00:00:00Z", "--to", "2026-10-23T01:00:00Z").status).toBe(0);
+		const map = JSON.parse(fs.readFileSync(path.join(root, ".gitboard/architecture.json"), "utf8"));
+		expect(map.platform).toEqual({ server: "web", database: null });
+		expect(map.routes[0].samples[0]).toMatchObject({ databaseCalls: 0, calls: [{ endpoint: "abc.supabase.co /rest/v1/rpc/permit", target: "provider" }] });
 	});
 });
 
 describe("cli measure, a page with no request", () => {
 	it("asks the site whether its cache served the page", async () => {
-		for (const page of ["app/page.tsx", "app/cached/page.tsx", "app/moved/page.tsx"]) {
+		for (const page of ["app/page.tsx", "app/cached/page.tsx", "app/moved/page.tsx", "app/standard/page.tsx"]) {
 			fs.mkdirSync(path.dirname(path.join(root, page)), { recursive: true });
 			fs.writeFileSync(path.join(root, page), "");
 		}
 		fakeGcx(path.join(root, ".bin"));
 		const site = http.createServer((req, res) => {
 			if (req.url === "/cached") res.writeHead(200, { "x-vercel-cache": "HIT" }).end();
+			else if (req.url === "/standard") res.writeHead(200, { "cache-status": "edge; hit" }).end();
 			else res.writeHead(307, { location: "/sign-in" }).end();
 		});
 		await new Promise<void>((resolve) => site.listen(0, "127.0.0.1", resolve));
 		const { port } = site.address() as { port: number };
-		fs.writeFileSync(path.join(root, "gitboard.config.json"), JSON.stringify({ architecture: { site: `http://127.0.0.1:${port}`, tempo: { datasource: "d", service: "web" } } }));
+		fs.writeFileSync(path.join(root, "gitboard.config.json"), JSON.stringify({ architecture: { ...PRESET, site: `http://127.0.0.1:${port}`, tempo: { datasource: "d", service: "web" } } }));
 		try {
 			const code = await new Promise<number | null>((resolve) => {
 				const child = spawn(process.execPath, [CLI, "measure", "--from", "2026-10-23T00:00:00Z", "--to", "2026-10-23T01:00:00Z"], {
@@ -162,6 +179,8 @@ describe("cli measure, a page with no request", () => {
 		const reason = (route: string) => map.routes.find((r) => r.route === route)?.noRequest;
 		expect(reason("/cached")).toBe("Served from the host's cache: no function ran, so Tempo has no server span");
 		expect(reason("/moved")).toBe("Answers 307 before the page runs");
+		// The preset reads its platform's header first and leaves the standard one out.
+		expect(reason("/standard")).toBe("No request in the window");
 		expect(reason("/")).toBeNull();
 	});
 });

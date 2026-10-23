@@ -133,7 +133,8 @@ describe("architecture", () => {
 
 	it("serves the data file, 404 before the first measure, and refuses a foreign Host", async () => {
 		const archPort = port + 1;
-		const architecture = { ...DEFAULT_ARCHITECTURE, data: "maps/live.json" };
+		const calls = [{ target: "sql", kind: "database" as const, group: "Queries", span: "pg " }];
+		const architecture = { ...DEFAULT_ARCHITECTURE, data: "maps/live.json", calls };
 		const arch = createBoardServer({ root: dir, config: { ...DEFAULT_CONFIG, github: false, architecture }, port: archPort, refreshMs: 0, log: () => {} });
 		const archServer = http.createServer(arch.handle);
 		await new Promise<void>((resolve) => archServer.listen(archPort, "127.0.0.1", resolve));
@@ -157,6 +158,12 @@ describe("architecture", () => {
 			const ok = await get("/api/architecture");
 			expect(ok.status).toBe(200);
 			expect(JSON.parse(ok.body).routes[0].route).toBe("/");
+			// A file from before `targets` gets them from the config's rules; a file with its own keeps them.
+			expect(Object.keys(JSON.parse(ok.body).targets)).toEqual(["sql", "provider"]);
+			expect(JSON.parse(ok.body).targets.sql).toMatchObject({ kind: "database", group: "Queries" });
+			const own = { format: 2, areas: [], routes: [], targets: { kv: { kind: "cache", group: "KV", label: "KV", icon: null, prefix: "" } } };
+			fs.writeFileSync(path.join(dir, "maps/live.json"), JSON.stringify(own));
+			expect(JSON.parse((await get("/api/architecture")).body)).toEqual(own);
 			expect((await get("/api/architecture", `evil.example:${archPort}`)).status).toBe(403);
 			fs.writeFileSync(path.join(dir, "maps/live.json"), "{ not json");
 			const bad = await get("/api/architecture");

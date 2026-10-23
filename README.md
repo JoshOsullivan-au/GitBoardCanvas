@@ -165,7 +165,7 @@ All keys, defaults and hook recipes are in [docs/configuration.md](docs/configur
 
 ### Architecture tab
 
-Add an `architecture` block and the board gets a second tab beside the Roadmap: every page your Next.js app serves, its server time against a budget, and the database, cache and provider calls it makes, read from Grafana Tempo by `gitboard measure`. See [architecture](docs/configuration.md#architecture).
+Add an `architecture` block and the board gets a second tab beside the Roadmap: every page your app serves, its server time against a budget, and the database, cache and provider calls it makes, read from Grafana Tempo by `gitboard measure`. Pages come from a Next.js app router folder or from a command you give for any other framework. Call rules in the same block describe your own database, cache and host; without them every call with a URL is a provider. An [example preset](docs/configuration.md#example-preset) shows one stack. See [architecture](docs/configuration.md#architecture).
 
 ## Security
 

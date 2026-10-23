@@ -124,6 +124,7 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 - R8. `gitboard list [--json]`: print the board.
 - R9. `gitboard init`, `gitboard --version`, `gitboard --help`.
 - R9a. `gitboard measure --from <iso> [--to <iso>]`: read the live pages from Tempo through `gcx` and write `architecture.data`; exit 1 without an `architecture` block or `--from`.
+- R9b (ADR 0002). The measure names no vendor. The page list comes from `architecture.appDir` (Next.js app router) or `architecture.pagesCommand`. Each call's endpoint, target and column (database, cache, provider) come from the first matching rule in `architecture.calls`, with `architecture.pathFolds` applied; a call with a URL that no rule matches is a provider. The host's name, the database column's name, the deployment attributes and the cache headers come from `architecture.platform`. The data file carries `format` and a `targets` description; for a file without them the server describes the targets from the current rules.
 
 ### 2.3 Server
 
@@ -143,7 +144,7 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 - R20. Filter by group, relation (blocked, gated, linked), git step and text; order by stage order, progress, last landed, created or title.
 - R21. Light and dark themes from the system setting. System fonts; no web font or external request.
 - R22. Live: moves made in a terminal, an editor or another worktree appear within about two seconds of landing.
-- R23 (ADR 0001). With an `architecture` block, header tabs (Roadmap first and the default, the last choice remembered per browser) switch to the Architecture tab: request, pages, database, cache and providers columns at fixed widths, each page's warm server time against the budget, hover to trace its calls with the board's link routing, click for a read path with resizable name and time columns.
+- R23 (ADR 0001, 0002). With an `architecture` block, header tabs (Roadmap first and the default, the last choice remembered per browser) switch to the Architecture tab: request, pages, database, cache and providers columns at fixed widths, each page's warm server time against the budget, hover to trace its calls with the board's link routing, click for a read path with resizable name and time columns. Database and provider groups, card icons and labels come from the data file's `targets`.
 
 ### 2.5 Configuration
 
@@ -182,7 +183,7 @@ Hook and lint commands are code the repo owner wrote; GitBoard Canvas runs them 
 - Q1. Unit tests for parsing (ticks, titles, phases, relations, status, attribution, link rewriting) and integration tests for moves in temporary repos (success, refused, dirty, conflict retry, hook failure, lint failure, lock).
 - Q2. Tests set `commit.gpgsign=false` in their temporary repos.
 - Q3. `npm run typecheck` and `npm test` pass on Node 22.12 and the current Node release.
-- Q4. No product-specific names in code, docs or templates.
+- Q4. No product-specific names in code, docs or templates. A vendor preset under `docs/presets/`, and the docs section that shows it, may name its vendors.
 
 ## 3. Out of scope for 0.1
 

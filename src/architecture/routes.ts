@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
-// The live routes: every Next.js app router page, minus what production does not serve.
+// The live routes: every page (from a Next.js app router folder, or a command that lists them), minus what production
+// does not serve.
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -39,17 +40,35 @@ export function areaOf(c: ArchitectureConfig, route: string): string {
 	return c.areas.find((a) => new RegExp(a.match, "i").test(route))?.name ?? c.defaultArea;
 }
 
+/** A command's JSON output, run at the repo root with `input` on stdin. */
+function runJson(root: string, command: string, input: string): unknown {
+	return JSON.parse(execSync(command, { cwd: root, encoding: "utf8", input, stdio: ["pipe", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 }));
+}
+
 /** The routes `routesCommand` keeps: it reads every page route (a JSON array) on stdin and prints the live ones. */
 function commandRoutes(root: string, command: string, routes: string[]): Set<string> {
-	const out = execSync(command, { cwd: root, encoding: "utf8", input: JSON.stringify(routes), stdio: ["pipe", "pipe", "pipe"], maxBuffer: 16 * 1024 * 1024 });
-	const list: unknown = JSON.parse(out);
+	const list = runJson(root, command, JSON.stringify(routes));
 	if (!Array.isArray(list) || !list.every((r) => typeof r === "string")) throw new Error("routesCommand must print a JSON array of route strings");
 	return new Set(list);
 }
 
+/**
+ * The page routes `pagesCommand` prints: route strings, or `{ route, file }` for a route with a source file, sorted with
+ * duplicates dropped. Each route starts with `/`.
+ */
+export function commandPages(root: string, command: string): { route: string; file: string }[] {
+	const list = runJson(root, command, "");
+	const page = (r: unknown): { route: unknown; file: unknown } => (typeof r === "object" && r !== null ? (r as { route: unknown; file: unknown }) : { route: r, file: "" });
+	if (!Array.isArray(list) || !list.map(page).every((p) => typeof p.route === "string" && p.route.startsWith("/")))
+		throw new Error('pagesCommand must print a JSON array of routes starting with /, as strings or { "route", "file" }');
+	const pages = list.map(page).map((p) => ({ route: String(p.route), file: typeof p.file === "string" ? p.file : "" }));
+	const seen = new Set<string>();
+	return pages.sort((a, b) => a.route.localeCompare(b.route)).filter((r) => !seen.has(r.route) && seen.add(r.route));
+}
+
 /** The pages production serves, each with its area and page file. */
 export function liveRoutes(root: string, c: ArchitectureConfig): LiveRoute[] {
-	const all = pageRoutes(root, c.appDir);
+	const all = c.pagesCommand ? commandPages(root, c.pagesCommand) : pageRoutes(root, c.appDir);
 	const keep = c.routesCommand
 		? ((live: Set<string>) => (route: string) => live.has(route))(commandRoutes(root, c.routesCommand, all.map((r) => r.route)))
 		: ((rules: RegExp[]) => (route: string) => !rules.some((r) => r.test(route)))(c.exclude.map((p) => new RegExp(p)));
