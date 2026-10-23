@@ -11,6 +11,12 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 - `GET /api/architecture` serves that file.
 - Icons `Buildings`, `Door`, `House`, `Plug`, `Stethoscope`, `Storefront`, `SunHorizon`, `Timer` and `UserCircle`.
 
+### Fixed
+
+- The board's background refresh no longer rewrites the git index of the checkouts it reads. Every git call now runs without optional locks, so `git status` cannot take `index.lock` while another session runs `git add` or `git commit`.
+- `gitboard init` no longer writes through a symlink it finds where a template, the config or `.gitignore` would go, and creates files only where nothing is.
+- `gitboard measure` refuses to overwrite a file at `architecture.data` that is not an earlier measure.
+
 ## 0.1.2 (22/10/2026)
 
 ### Fixed

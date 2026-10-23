@@ -144,7 +144,7 @@ The Architecture tab sits beside the Roadmap board. It shows every page your app
 | `access` | `[]` | Endpoints shown as access checks, such as `"rpc permit"`. |
 | `providers` | `{}` | Display names for provider hosts, such as `{ "api.example.com": "Example" }`. |
 | `cache` | `null` | `{ "name", "reader", "dirs" }`: a cache read helper. When no request reached the cache, the tab lists the files under `dirs` that call `reader`. |
-| `data` | `".gitboard/architecture.json"` | Repo-relative file `gitboard measure` writes and the tab reads. Commit it to share a measure, or ignore it. |
+| `data` | `".gitboard/architecture.json"` | Repo-relative file `gitboard measure` writes and the tab reads. Commit it to share a measure, or ignore it. `measure` refuses to overwrite a file there that is not an earlier measure. |
 
 ```json
 {

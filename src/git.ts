@@ -3,11 +3,19 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
 
+/**
+ * The environment every git call runs with. Without optional locks a read such as `git status` never takes
+ * `index.lock` or rewrites a checkout's index, so the board's background refresh cannot change another session's
+ * checkout or collide with its `git add`. Writes (a move's add, commit, merge) still take the locks they need.
+ */
+export const GIT_ENV = { ...process.env, GIT_OPTIONAL_LOCKS: "0" };
+
 /** Run git in `cwd` and return stdout; throws with git's stderr on a non-zero exit. */
 export function git(cwd: string, args: string[]): string {
 	try {
 		return execFileSync("git", args, {
 			cwd,
+			env: GIT_ENV,
 			encoding: "utf8",
 			maxBuffer: 64 * 1024 * 1024,
 			stdio: ["ignore", "pipe", "pipe"],

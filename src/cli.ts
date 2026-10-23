@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { measure, writeMap } from "./architecture/measure.js";
+import { checkTarget, measure, writeMap } from "./architecture/measure.js";
 import { loadBoard } from "./board.js";
 import { type GitBoardConfig, loadConfig, stagesOf } from "./config.js";
 import { mainCheckout, repoRoot } from "./git.js";
@@ -94,6 +94,7 @@ async function main(argv: string[]): Promise<number> {
 			return 1;
 		}
 		try {
+			checkTarget(path.join(root, arch.data), arch.data);
 			const map = await measure(root, arch, from, flag(args, "--to") ?? new Date().toISOString());
 			writeMap(path.join(root, arch.data), map);
 			const measured = map.routes.filter((r) => r.samples.length).length;

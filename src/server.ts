@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { Marked } from "marked";
 
+import { isMeasure } from "./architecture/measure.js";
 import { loadBoard } from "./board.js";
 import type { GitBoardConfig } from "./config.js";
 import { boardVersion } from "./git.js";
@@ -139,12 +140,7 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 		}
 		if (!real.startsWith(fs.realpathSync(root) + path.sep)) return none;
 		const body = fs.readFileSync(real, "utf8");
-		try {
-			const map = JSON.parse(body) as Record<string, unknown>;
-			if (Array.isArray(map.routes) && Array.isArray(map.areas)) return { body };
-		} catch {
-			// Reported below with the wrong shape.
-		}
+		if (isMeasure(body)) return { body };
 		return { status: 500, error: `${config.architecture.data} is not a measure: run gitboard measure again.` };
 	}
 

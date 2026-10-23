@@ -206,7 +206,24 @@ export async function measure(root: string, c: ArchitectureConfig, from: string,
 	};
 }
 
+/** Whether `text` is a file `writeMap` wrote: JSON with `routes` and `areas` arrays. */
+export function isMeasure(text: string): boolean {
+	try {
+		const map = JSON.parse(text) as Record<string, unknown>;
+		return Array.isArray(map.routes) && Array.isArray(map.areas);
+	} catch {
+		return false;
+	}
+}
+
+/** Throws unless `file` is free or holds an earlier measure: the measure never overwrites a file it did not write. */
+export function checkTarget(file: string, label = file): void {
+	if (fs.existsSync(file) && !isMeasure(fs.readFileSync(file, "utf8")))
+		throw new Error(`${label} is not a measure file; point architecture.data at a new file`);
+}
+
 export function writeMap(file: string, map: ArchitectureMap): void {
+	checkTarget(file);
 	fs.mkdirSync(path.dirname(file), { recursive: true });
 	fs.writeFileSync(file, `${JSON.stringify(map, null, "\t")}\n`);
 }
