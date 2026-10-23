@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 
+import { linkOnPath } from "../paths.js";
 import { type ArchitectureConfig, serverSelector } from "./config.js";
 import { type Call, flattenTrace, readPath, shellEndpoints, type Span } from "./readPath.js";
 import { liveRoutes } from "./routes.js";
@@ -64,7 +65,8 @@ async function gcx(c: ArchitectureConfig, args: string[], tries = 4): Promise<un
 			// gcx prints its error JSON on stdout.
 			const { stdout = "", stderr = "" } = error as { stdout?: string; stderr?: string };
 			const text = `${stderr} ${stdout}`.trim() || String(error);
-			if (attempt >= tries || !/503|loading/i.test(text)) throw new Error(`gcx ${args.slice(0, 2).join(" ")}: ${text}`);
+			// 503 as a whole word: a trace id in the command line can hold those digits.
+			if (attempt >= tries || !/\b503\b|loading/i.test(text)) throw new Error(`gcx ${args.slice(0, 2).join(" ")}: ${text}`);
 			await new Promise((r) => setTimeout(r, 60_000));
 		}
 	}
@@ -100,7 +102,7 @@ async function byName(c: ArchitectureConfig, expr: string, from: string, to: str
 async function whyNoRequest(c: ArchitectureConfig, route: string): Promise<string> {
 	if (!c.site || /\[/.test(route)) return "No request in the window";
 	try {
-		const res = await fetch(`${c.site}${route}`, { method: "HEAD", redirect: "manual" });
+		const res = await fetch(`${c.site}${route}`, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(10_000) });
 		const cache = res.headers.get("x-vercel-cache") ?? res.headers.get("x-cache") ?? res.headers.get("cf-cache-status");
 		if (cache && /hit/i.test(cache)) return "Served from the host's cache: no function ran, so Tempo has no server span";
 		if (res.status >= 300 && res.status < 400) return `Answers ${res.status} before the page runs`;
@@ -151,7 +153,7 @@ export async function measure(root: string, c: ArchitectureConfig, from: string,
 		.map(({ id, spans }) => ({ id, spans, server: spans.find((s) => s.kind === "SPAN_KIND_SERVER" && s.service === c.tempo.service) }))
 		.filter((r): r is { id: string; spans: Span[]; server: Span } => Boolean(r.server))
 		.sort((a, b) => a.server.startNs - b.server.startNs);
-	const shell = shellEndpoints(requests.map((r) => readPath(r.spans, new Set()).calls), c.shellShare);
+	const shell = shellEndpoints(requests.map((r) => readPath(r.spans, new Set(), c.tempo.service).calls), c.shellShare);
 
 	const routes: RouteFigure[] = [];
 	for (const live of liveRoutes(root, c)) {
@@ -165,7 +167,7 @@ export async function measure(root: string, c: ArchitectureConfig, from: string,
 		const samples: Sample[] = [...bySample].map(([sample, list]) => {
 			const warm = list[list.length - 1];
 			const cold = list.length > 1 ? list[0] : null;
-			const { calls } = readPath(warm.spans, shell);
+			const { calls } = readPath(warm.spans, shell, c.tempo.service);
 			const middleware = warm.spans.find((s) => s.name.startsWith("middleware "));
 			return {
 				sample,
@@ -216,14 +218,28 @@ export function isMeasure(text: string): boolean {
 	}
 }
 
-/** Throws unless `file` is free or holds an earlier measure: the measure never overwrites a file it did not write. */
-export function checkTarget(file: string, label = file): void {
+/**
+ * Throws unless `rel` under `root` is free or holds an earlier measure, with no link on its path: the measure never
+ * overwrites a file it did not write, and never writes through a link.
+ */
+export function checkTarget(root: string, rel: string): void {
+	const file = path.join(root, rel);
+	if (linkOnPath(root, file)) throw new Error(`${rel} is a link or sits under one; point architecture.data at a plain file in the repo`);
 	if (fs.existsSync(file) && !isMeasure(fs.readFileSync(file, "utf8")))
-		throw new Error(`${label} is not a measure file; point architecture.data at a new file`);
+		throw new Error(`${rel} is not a measure file; point architecture.data at a new file`);
 }
 
-export function writeMap(file: string, map: ArchitectureMap): void {
-	checkTarget(file);
+/** Writes beside the target, then renames over it, so a reader sees the old file or the whole new one. */
+export function writeMap(root: string, rel: string, map: ArchitectureMap): void {
+	checkTarget(root, rel);
+	const file = path.join(root, rel);
 	fs.mkdirSync(path.dirname(file), { recursive: true });
-	fs.writeFileSync(file, `${JSON.stringify(map, null, "\t")}\n`);
+	const tmp = `${file}.${process.pid}.tmp`;
+	try {
+		fs.writeFileSync(tmp, `${JSON.stringify(map, null, "\t")}\n`, { flag: "wx" });
+		fs.renameSync(tmp, file);
+	} catch (error) {
+		fs.rmSync(tmp, { force: true });
+		throw error;
+	}
 }

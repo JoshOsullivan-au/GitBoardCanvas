@@ -16,6 +16,11 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 - The board's background refresh no longer rewrites the git index of the checkouts it reads. Every git call now runs without optional locks, so `git status` cannot take `index.lock` while another session runs `git add` or `git commit`.
 - `gitboard init` no longer writes through a symlink it finds where a template, the config or `.gitignore` would go, and creates files only where nothing is.
 - `gitboard measure` refuses to overwrite a file at `architecture.data` that is not an earlier measure.
+- A config written by `gitboard init` (`"architecture": null`) loads again; `null` means no Architecture tab.
+- `gitboard init` skips a template or stage folder that is a symlink, and `gitboard measure` refuses a data path with a link on it; the measure file is written beside the target and renamed over it.
+- The measure reads the calls of the configured service's server span, not an upstream service's listed first in the trace.
+- A `gcx` failure fails at once instead of retrying when the trace id happens to contain `503`; the cache check's `HEAD` request gives up after 10 seconds.
+- On the Architecture tab, a provider or cache call made on every page shows once, in its own column, and a page with no request shows the measured reason instead of always "Served from the host's cache".
 
 ## 0.1.2 (22/10/2026)
 

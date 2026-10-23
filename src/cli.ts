@@ -94,9 +94,9 @@ async function main(argv: string[]): Promise<number> {
 			return 1;
 		}
 		try {
-			checkTarget(path.join(root, arch.data), arch.data);
+			checkTarget(root, arch.data);
 			const map = await measure(root, arch, from, flag(args, "--to") ?? new Date().toISOString());
-			writeMap(path.join(root, arch.data), map);
+			writeMap(root, arch.data, map);
 			const measured = map.routes.filter((r) => r.samples.length).length;
 			process.stderr.write(
 				`gitboard: ${measured} of ${map.routes.length} live routes measured, ${map.routes.length - measured} with no request; wrote ${arch.data}\n`,

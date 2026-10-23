@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { CONFIG_FILE, type GitBoardConfig } from "./config.js";
+import { linkOnPath } from "./paths.js";
 
 /** The package's `templates/` folder, next to `dist/` once built and next to `src/` in a checkout. */
 export const TEMPLATES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "templates");
@@ -26,13 +27,13 @@ function copyNew(src: string, dest: string): void {
 	fs.copyFileSync(src, dest, fs.constants.COPYFILE_EXCL);
 }
 
-function copyTree(from: string, to: string, created: string[], skipped: string[]): void {
+function copyTree(root: string, from: string, to: string, created: string[], skipped: string[]): void {
 	if (!fs.existsSync(from)) return;
 	for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
 		const src = path.join(from, entry.name);
 		const dest = path.join(to, entry.name);
-		if (entry.isDirectory()) copyTree(src, dest, created, skipped);
-		else if (present(dest)) skipped.push(dest);
+		if (entry.isDirectory()) copyTree(root, src, dest, created, skipped);
+		else if (present(dest) || linkOnPath(root, dest)) skipped.push(dest);
 		else {
 			copyNew(src, dest);
 			created.push(dest);
@@ -51,7 +52,7 @@ export function init(root: string, config: GitBoardConfig, templates = TEMPLATES
 	const lifecycle = path.join(root, config.roadmapDir);
 	const copyFile = (src: string, dest: string) => {
 		if (!fs.existsSync(src)) return;
-		if (present(dest)) return void skipped.push(dest);
+		if (present(dest) || linkOnPath(root, dest)) return void skipped.push(dest);
 		copyNew(src, dest);
 		created.push(dest);
 	};
@@ -59,7 +60,12 @@ export function init(root: string, config: GitBoardConfig, templates = TEMPLATES
 	for (const stage of config.stages) {
 		const dir = path.join(lifecycle, stage.folder);
 		const template = path.join(templates, "roadmap", stage.folder);
-		if (fs.existsSync(template)) copyTree(template, dir, created, skipped);
+		// A stage folder that is a link belongs to something else: put nothing in it.
+		if (linkOnPath(root, dir)) {
+			skipped.push(dir);
+			continue;
+		}
+		if (fs.existsSync(template)) copyTree(root, template, dir, created, skipped);
 		if (!fs.existsSync(dir) || fs.readdirSync(dir).length === 0) {
 			fs.mkdirSync(dir, { recursive: true });
 			const keep = path.join(dir, ".gitkeep");
@@ -67,7 +73,7 @@ export function init(root: string, config: GitBoardConfig, templates = TEMPLATES
 			created.push(keep);
 		}
 	}
-	copyTree(path.join(templates, "feature"), path.join(lifecycle, "templates", "feature"), created, skipped);
+	copyTree(root, path.join(templates, "feature"), path.join(lifecycle, "templates", "feature"), created, skipped);
 	const configFile = path.join(root, CONFIG_FILE);
 	if (present(configFile)) skipped.push(configFile);
 	else {

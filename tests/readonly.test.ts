@@ -216,3 +216,41 @@ describe("init next to links it does not own", () => {
 		}
 	});
 });
+
+describe("writers never write through a linked folder", () => {
+	it("init skips a templates or stage folder that links outside the repo", () => {
+		const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "gitboard-outside-")));
+		try {
+			fs.mkdirSync(path.join(outside, "templates"));
+			fs.mkdirSync(path.join(outside, "stage"));
+			fs.symlinkSync(path.join(outside, "templates"), path.join(root, "roadmap", "templates"));
+			fs.rmSync(path.join(root, "roadmap", "4.in-progress"), { recursive: true });
+			fs.symlinkSync(path.join(outside, "stage"), path.join(root, "roadmap", "4.in-progress"));
+			init(root, loadConfig(root));
+			expect(fs.readdirSync(path.join(outside, "templates"))).toEqual([]);
+			expect(fs.readdirSync(path.join(outside, "stage"))).toEqual([]);
+		} finally {
+			fs.rmSync(outside, { recursive: true, force: true });
+		}
+	});
+
+	it.each([
+		["a dangling link at the data path", (outside: string) => fs.symlinkSync(path.join(outside, "map.json"), path.join(root, "maps", "out.json")), "maps/out.json"],
+		["a linked parent folder", (outside: string) => fs.symlinkSync(outside, path.join(root, "linked")), "linked/out.json"],
+	])("measure refuses %s", (_label, link, data) => {
+		const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "gitboard-outside-")));
+		try {
+			link(outside);
+			fs.writeFileSync(path.join(root, "gitboard.config.json"), JSON.stringify({ architecture: { tempo: { datasource: "d", service: "web" }, data } }));
+			put(".bin/gcx", "#!/bin/sh\nexit 1\n");
+			fs.chmodSync(path.join(root, ".bin/gcx"), 0o755);
+			const PATH = `${path.join(root, ".bin")}${path.delimiter}${process.env.PATH}`;
+			const out = spawnSync(process.execPath, [CLI, "measure", "--from", "2026-10-23T00:00:00Z", "--to", "2026-10-23T01:00:00Z"], { cwd: root, encoding: "utf8", env: { ...process.env, PATH } });
+			expect(out.status).toBe(1);
+			expect(out.stderr).toContain(`${data} is a link or sits under one; point architecture.data at a plain file in the repo`);
+			expect(fs.readdirSync(outside)).toEqual([]);
+		} finally {
+			fs.rmSync(outside, { recursive: true, force: true });
+		}
+	});
+});

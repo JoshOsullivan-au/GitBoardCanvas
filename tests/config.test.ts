@@ -5,7 +5,8 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { loadConfig } from "../src/config.js";
+import { DEFAULT_CONFIG, loadConfig } from "../src/config.js";
+import { init } from "../src/init.js";
 
 let root: string;
 const put = (value: unknown) => fs.writeFileSync(path.join(root, "gitboard.config.json"), typeof value === "string" ? value : JSON.stringify(value));
@@ -16,6 +17,16 @@ beforeEach(() => {
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
 describe("loadConfig", () => {
+	it("loads the config gitboard init writes", () => {
+		init(root, DEFAULT_CONFIG);
+		expect(loadConfig(root).architecture).toBeNull();
+	});
+
+	it("reads \"architecture\": null as no tab", () => {
+		put({ architecture: null });
+		expect(loadConfig(root).architecture).toBeNull();
+	});
+
 	it("uses the defaults without a file", () => {
 		expect(loadConfig(root).roadmapDir).toBe("roadmap");
 	});

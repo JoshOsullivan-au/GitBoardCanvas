@@ -145,7 +145,7 @@ function checkShape(raw: unknown): string[] {
 					if (!isStrings(v)) e.push(`hooks.onEnter["${k}"] must be an array of strings`);
 		}
 	}
-	if (raw.architecture !== undefined) {
+	if (raw.architecture !== undefined && raw.architecture !== null) {
 		try {
 			architectureConfig(raw.architecture);
 		} catch (error) {
@@ -180,7 +180,7 @@ export function loadConfig(root: string): GitBoardConfig {
 		...user,
 		lint: { ...DEFAULT_CONFIG.lint, ...(user.lint ?? {}) },
 		hooks: { onEnter: { ...(user.hooks?.onEnter ?? {}) } },
-		architecture: user.architecture === undefined ? null : architectureConfig(user.architecture),
+		architecture: user.architecture == null ? null : architectureConfig(user.architecture),
 	};
 	config.roadmapDir = normaliseDir(config.roadmapDir);
 	validateConfig(config);

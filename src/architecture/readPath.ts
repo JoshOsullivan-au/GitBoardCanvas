@@ -132,8 +132,9 @@ export function shellEndpoints(requests: { endpoint: string }[][], share = 0.9):
 }
 
 /** The server request's calls in start order, each with its wave and whether the shell or the page made it. */
-export function readPath(spans: Span[], shell: Set<string>): { server: Span | null; calls: Call[] } {
-	const server = spans.find((s) => s.kind === "SPAN_KIND_SERVER") ?? null;
+export function readPath(spans: Span[], shell: Set<string>, service?: string): { server: Span | null; calls: Call[] } {
+	// The named service's server span: a trace can hold an upstream service's server span first.
+	const server = spans.find((s) => s.kind === "SPAN_KIND_SERVER" && (!service || s.service === service)) ?? null;
 	if (!server) return { server, calls: [] };
 	// The server's own client spans: the browser's span for the same request (real user monitoring) is not a call the page made.
 	const raw = spans

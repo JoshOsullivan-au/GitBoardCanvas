@@ -165,3 +165,35 @@ describe("cli measure, a page with no request", () => {
 		expect(reason("/")).toBeNull();
 	});
 });
+
+describe("cli measure, a gcx failure", () => {
+	it("fails at once when a trace id happens to contain 503", () => {
+		put503Gcx(path.join(root, ".bin"));
+		fs.writeFileSync(path.join(root, "gitboard.config.json"), JSON.stringify({ architecture: { tempo: { datasource: "d", service: "web" } } }));
+		const started = Date.now();
+		const out = spawnSync(process.execPath, [CLI, "measure", "--from", "2026-10-23T00:00:00Z", "--to", "2026-10-23T01:00:00Z"], {
+			cwd: root,
+			encoding: "utf8",
+			timeout: 20_000,
+			env: { ...process.env, PATH: `${path.join(root, ".bin")}${path.delimiter}${process.env.PATH}` },
+		});
+		expect(Date.now() - started).toBeLessThan(15_000);
+		expect(out.status).toBe(1);
+		expect(out.stderr).toContain("gcx traces get");
+	});
+});
+
+/** A gcx whose search finds one trace with 503 inside its id, and whose `traces get` fails with no output. */
+function put503Gcx(bin: string): void {
+	fs.mkdirSync(bin, { recursive: true });
+	fs.writeFileSync(
+		path.join(bin, "gcx"),
+		`#!${process.execPath}
+const a = process.argv.slice(2);
+if (a[1] === "query") process.stdout.write(JSON.stringify({ traces: [{ traceID: "4f5030aa11bb22cc33dd44ee55ff6677" }] }));
+else if (a[1] === "get") process.exit(1);
+else process.stdout.write(JSON.stringify({ series: [] }));
+`,
+		{ mode: 0o755 },
+	);
+}

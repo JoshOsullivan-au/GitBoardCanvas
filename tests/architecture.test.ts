@@ -95,6 +95,16 @@ describe("live routes", () => {
 });
 
 describe("read path", () => {
+	it("reads the calls of the named service's server span, not an upstream one listed first", () => {
+		const proxy = span({ service: "edge", kind: "SPAN_KIND_SERVER", name: "GET /x", startNs: ms(0), endNs: ms(600) });
+		const proxyCall = { ...call("https://a.supabase.co/rest/v1/rpc/edge_only", 5, 10), service: "edge" };
+		const web = span({ service: "web", kind: "SPAN_KIND_SERVER", name: "GET /x", startNs: ms(100), endNs: ms(400) });
+		const webCall = { ...call("https://a.supabase.co/rest/v1/brands", 120, 30), service: "web" };
+		const { server, calls } = readPath([proxy, proxyCall, web, webCall], new Set(), "web");
+		expect(server?.service).toBe("web");
+		expect(calls.map((c) => [c.endpoint, c.startMs])).toEqual([["table brands", 20]]);
+	});
+
 	it("names Supabase, provider and Redis calls with ids folded", () => {
 		const u = "https://abc.supabase.co";
 		expect(endpointOf(call(`${u}/rest/v1/rpc/permit`, 0, 1))).toMatchObject({ endpoint: "rpc permit", target: "rpc" });

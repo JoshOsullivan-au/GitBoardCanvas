@@ -1504,7 +1504,7 @@ function routeCard(n) {
   const t = tone(n);
   const on = state.trace === n.key;
   const dim = state.trace && !on;
-  const sub = n.warm ? `${plural(n.databaseCalls, "database call")} · ${plural(n.waves, "wave")}${n.status >= 300 && n.status < 400 ? ` · ${n.status}` : ""}` : "Served from the host's cache";
+  const sub = n.warm ? `${plural(n.databaseCalls, "database call")} · ${plural(n.waves, "wave")}${n.status >= 300 && n.status < 400 ? ` · ${n.status}` : ""}` : n.noRequest ?? "No request in the window";
   const chips = n.warm ? `<span class="av-b tn ${t}" title="Warm server time">${icon("Timer")}<span class="t">${secs(n.warm.serverMs)}</span></span>` : `<span class="av-b dt">No request</span>`;
   const mark = t === "ok" ? icon("Check") : "";
   return `<div class="card lg lg-regular ${t === "ok" ? "done" : t === "none" ? "lock" : t}${on ? " on" : ""}${dim ? " off" : ""}" data-key="${esc(n.key)}" role="button" tabindex="0" aria-label="${esc(`${n.label}, ${n.warm ? secs(n.warm.serverMs) : "no request"}, ${sub}`)}">
@@ -1541,7 +1541,7 @@ function epGroups() {
   const sort = (list) => list.sort((a, b) => b.routes.size - a.routes.size || a.endpoint.localeCompare(b.endpoint));
   return {
     supabase: [
-      ["Shell", "Stack", sort(all.filter((e) => e.shell))],
+      ["Shell", "Stack", sort(all.filter((e) => e.shell && e.target !== "provider" && e.target !== "redis"))],
       ["Access checks", "ShieldCheck", sort(all.filter((e) => !e.shell && ACCESS.has(e.endpoint)))],
       ["RPCs", "Lightning", sort(all.filter((e) => !e.shell && e.target === "rpc" && !ACCESS.has(e.endpoint)))],
       ["Tables", "Database", sort(all.filter((e) => !e.shell && e.target === "table"))],
