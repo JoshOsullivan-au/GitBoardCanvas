@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { DEFAULT_ARCHITECTURE } from "../src/architecture/config.js";
 import { DEFAULT_CONFIG } from "../src/config.js";
+import { statusSettled } from "../src/pipeline.js";
 import { clientMessage, createBoardServer } from "../src/server.js";
 import { fakeGh, prRow } from "./fake-gh.js";
 
@@ -196,6 +197,9 @@ describe("pull request status", () => {
 		const ghPort = (srv.address() as { port: number }).port;
 		const board = createBoardServer({ root, config: { ...DEFAULT_CONFIG, github: true }, port: ghPort, refreshMs: 0, log: () => {} });
 		handle = board.handle;
+		await board.refresh();
+		// Status is read in the background; the next refresh merges it.
+		await statusSettled(root);
 		await board.refresh();
 		try {
 			const body = await new Promise<string>((resolve, reject) => {

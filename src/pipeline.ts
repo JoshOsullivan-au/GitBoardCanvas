@@ -123,55 +123,92 @@ export function parseStatus(z: string): { wip: string[]; staged: string[] } {
 	return { wip, staged };
 }
 
-const prCache = new Map<string, { at: number; prs: PullRequest[] | null }>();
+type PrRow = Omit<PullRequest, keyof PrStatus>;
+
+const prCache = new Map<string, { at: number; rows: PrRow[] | null }>();
+const statusCache = new Map<string, { at: number; statuses: Map<number, PrStatus>; inflight: Promise<void> | null }>();
 
 const NO_STATUS: PrStatus = { checks: null, review: null, conflicts: false };
+const GH = { encoding: "utf8" as const, maxBuffer: 16 * 1024 * 1024 };
 
 /**
- * Open pull requests through the GitHub CLI, read only, cached for a minute per repo. The list and the status are two
- * calls; when only the status call fails, the pull requests still show, without checks, review or conflicts.
+ * Starts the status read for a repo when the last one is over a minute old, and never waits on it: the board's first
+ * refresh opens the port and a move's refresh returns on the list alone. The status lands in `statusCache` for the
+ * next read. A failed or unreadable status leaves none, so cards show their pull requests without it. It gets 30 s
+ * because it runs beside the list and slows with it on big repos (7 to 11 s alone, past 20 s together).
+ */
+function refreshStatus(root: string, now: number): Promise<void> {
+	let entry = statusCache.get(root);
+	if (!entry) {
+		entry = { at: 0, statuses: new Map(), inflight: null };
+		statusCache.set(root, entry);
+	}
+	if (entry.inflight) return entry.inflight;
+	if (entry.at && now - entry.at < 60_000) return Promise.resolve();
+	const e = entry;
+	e.inflight = run("gh", ["api", "graphql", "-F", "owner={owner}", "-F", "repo={repo}", "-f", `query=${PR_STATUS_QUERY}`], {
+		...GH,
+		cwd: root,
+		timeout: 30_000,
+	})
+		.then(({ stdout }) => {
+			e.statuses = parsePrStatus(stdout);
+		})
+		.catch(() => {
+			e.statuses = new Map();
+		})
+		.finally(() => {
+			e.at = Date.now();
+			e.inflight = null;
+		});
+	return e.inflight;
+}
+
+/** Resolves once a repo's status read in flight, if any, has landed. For tests and callers that want status now. */
+export function statusSettled(root: string): Promise<void> {
+	return statusCache.get(root)?.inflight ?? Promise.resolve();
+}
+
+/**
+ * Open pull requests through the GitHub CLI, read only, the list cached for a minute per repo. Each read merges the
+ * latest status the background read has (see `refreshStatus`); a pull request without one shows no checks, review or
+ * conflicts.
  */
 async function openPullRequests(root: string, now = Date.now()): Promise<PullRequest[] | null> {
-	const hit = prCache.get(root);
-	if (hit && now - hit.at < 60_000) return hit.prs;
-	const opts = { cwd: root, encoding: "utf8" as const, timeout: 20_000, maxBuffer: 16 * 1024 * 1024 };
-	// The status query runs beside the list and slows with it on big repos (7 to 11 s alone, past 20 s together), so
-	// it gets longer; the board refreshes in the background, so nothing waits on it.
-	const [list, status] = await Promise.allSettled([
-		run("gh", ["pr", "list", "--state", "open", "--limit", "100", "--json", "number,title,url,isDraft,headRefName,files"], opts),
-		run("gh", ["api", "graphql", "-F", "owner={owner}", "-F", "repo={repo}", "-f", `query=${PR_STATUS_QUERY}`], { ...opts, timeout: 30_000 }),
-	]);
-	let prs: PullRequest[] | null;
-	try {
-		if (list.status === "rejected") throw list.reason;
-		let statuses = new Map<number, PrStatus>();
+	void refreshStatus(root, now);
+	let hit = prCache.get(root);
+	if (!hit || now - hit.at >= 60_000) {
+		let rows: PrRow[] | null;
 		try {
-			if (status.status === "fulfilled") statuses = parsePrStatus(status.value.stdout);
+			const { stdout } = await run(
+				"gh",
+				["pr", "list", "--state", "open", "--limit", "100", "--json", "number,title,url,isDraft,headRefName,files"],
+				{ ...GH, cwd: root, timeout: 20_000 },
+			);
+			const parsed = JSON.parse(stdout) as {
+				number: number;
+				title: string;
+				url: string;
+				isDraft: boolean;
+				headRefName: string;
+				files?: { path: string }[];
+			}[];
+			rows = parsed.map((r) => ({
+				number: r.number,
+				title: r.title,
+				url: r.url,
+				draft: r.isDraft,
+				branch: r.headRefName,
+				files: (r.files ?? []).map((f) => f.path),
+			}));
 		} catch {
-			// Unreadable status: the pull requests still show.
+			rows = null;
 		}
-		const rows = JSON.parse(list.value.stdout) as {
-			number: number;
-			title: string;
-			url: string;
-			isDraft: boolean;
-			headRefName: string;
-			files?: { path: string }[];
-		}[];
-		prs = rows.map((r) => ({
-			number: r.number,
-			title: r.title,
-			url: r.url,
-			draft: r.isDraft,
-			branch: r.headRefName,
-			files: (r.files ?? []).map((f) => f.path),
-			...(statuses.get(r.number) ?? NO_STATUS),
-		}));
-	} catch {
-		prs = null;
+		hit = { at: now, rows };
+		prCache.set(root, hit);
 	}
-	prCache.set(root, { at: now, prs });
-	return prs;
+	const statuses = statusCache.get(root)?.statuses ?? new Map<number, PrStatus>();
+	return hit.rows?.map((r) => ({ ...r, ...(statuses.get(r.number) ?? NO_STATUS) })) ?? null;
 }
 
 /**

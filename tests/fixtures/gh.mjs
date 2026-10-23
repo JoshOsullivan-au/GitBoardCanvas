@@ -2,7 +2,8 @@
 // A stand-in for the GitHub CLI. It logs each call to GH_FAKE_LOG, one JSON argv per line, then answers from the
 // rows in GH_FAKE_PRS: `gh pr list --json <fields>` with those fields, and `gh api graphql` with the pull request
 // status query's shape (each row's `checkState`, `reviewDecision` and `mergeable`). GH_FAKE_FAIL=1 fails every call
-// and GH_FAKE_FAIL=status only the GraphQL one, exiting 1 as gh does; so does a missing fixture.
+// and GH_FAKE_FAIL=status only the GraphQL one, exiting 1 as gh does; so does a missing fixture. GH_FAKE_STATUS_DELAY
+// holds the GraphQL answer back that many milliseconds.
 import fs from "node:fs";
 
 const args = process.argv.slice(2);
@@ -16,6 +17,8 @@ const list = args[0] === "pr" && args[1] === "list";
 const graphql = args[0] === "api" && args[1] === "graphql";
 if (mode === "1" || (!list && !graphql)) fail("fake failure");
 if (graphql && mode === "status") fail("HTTP 504: 504 Gateway Timeout (https://api.github.com/graphql)");
+const delay = Number(process.env.GH_FAKE_STATUS_DELAY ?? 0);
+if (graphql && delay) await new Promise((resolve) => setTimeout(resolve, delay));
 let rows;
 try {
 	rows = JSON.parse(fs.readFileSync(process.env.GH_FAKE_PRS ?? "", "utf8"));

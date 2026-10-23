@@ -11,6 +11,7 @@ const SCRIPT = path.resolve(import.meta.dirname, "fixtures/gh.mjs");
 export type FakeGh = {
 	prs: (rows: unknown[]) => void;
 	fail: (on: boolean | "status") => void;
+	statusDelay: (ms: number) => void;
 	calls: () => string[][];
 	restore: () => void;
 };
@@ -22,16 +23,20 @@ export function fakeGh(): FakeGh {
 	fs.writeFileSync(bin, `#!/bin/sh\nexec "${process.execPath}" "${SCRIPT}" "$@"\n`, { mode: 0o755 });
 	const log = path.join(dir, "calls.log");
 	const prs = path.join(dir, "prs.json");
-	const before = { PATH: process.env.PATH, GH_FAKE_LOG: process.env.GH_FAKE_LOG, GH_FAKE_PRS: process.env.GH_FAKE_PRS, GH_FAKE_FAIL: process.env.GH_FAKE_FAIL };
+	const before = { PATH: process.env.PATH, GH_FAKE_LOG: process.env.GH_FAKE_LOG, GH_FAKE_PRS: process.env.GH_FAKE_PRS, GH_FAKE_FAIL: process.env.GH_FAKE_FAIL, GH_FAKE_STATUS_DELAY: process.env.GH_FAKE_STATUS_DELAY };
 	process.env.PATH = `${dir}${path.delimiter}${process.env.PATH ?? ""}`;
 	process.env.GH_FAKE_LOG = log;
 	process.env.GH_FAKE_PRS = prs;
 	delete process.env.GH_FAKE_FAIL;
+	delete process.env.GH_FAKE_STATUS_DELAY;
 	return {
 		prs: (rows) => fs.writeFileSync(prs, JSON.stringify(rows)),
 		fail: (on) => {
 			if (on) process.env.GH_FAKE_FAIL = on === "status" ? "status" : "1";
 			else delete process.env.GH_FAKE_FAIL;
+		},
+		statusDelay: (ms) => {
+			process.env.GH_FAKE_STATUS_DELAY = String(ms);
 		},
 		calls: () =>
 			fs.existsSync(log)

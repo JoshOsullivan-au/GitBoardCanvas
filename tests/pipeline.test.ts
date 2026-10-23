@@ -18,6 +18,7 @@ import {
 	PR_STATUS_QUERY,
 	parsePrStatus,
 	reviewState,
+	statusSettled,
 } from "../src/pipeline.js";
 import { type FakeGh, fakeGh, prRow } from "./fake-gh.js";
 
@@ -244,6 +245,8 @@ describe("pull request status", () => {
 			prRow({ number: 9, headRefName: "green", checkState: "SUCCESS", reviewDecision: "APPROVED", mergeable: "UNKNOWN" }),
 			prRow({ number: 10, headRefName: "no-checks" }),
 		]);
+		await readPipeline(root, config({ github: true }));
+		await statusSettled(root);
 		const p = await readPipeline(root, config({ github: true }));
 		const list = gh.calls().find((a) => a[0] === "pr");
 		const graphql = gh.calls().find((a) => a[0] === "api");
@@ -271,15 +274,36 @@ describe("pull request status", () => {
 		gh = fakeGh();
 		gh.fail("status");
 		gh.prs([prRow({ number: 3, headRefName: "x", checkState: "FAILURE", mergeable: "CONFLICTING" })]);
-		const p = await readPipeline(repo({ "a.md": "x" }), config({ github: true }));
+		const root = repo({ "a.md": "x" });
+		await readPipeline(root, config({ github: true }));
+		await statusSettled(root);
+		const p = await readPipeline(root, config({ github: true }));
 		expect(p.prs).toEqual([expect.objectContaining({ number: 3, checks: null, review: null, conflicts: false })]);
+	});
+
+	it("never waits on a slow status read: the list shows at once and the status joins on a later read", async () => {
+		gh = fakeGh();
+		gh.statusDelay(4_000);
+		gh.prs([prRow({ number: 6, headRefName: "x", checkState: "FAILURE" })]);
+		const root = repo({ "a.md": "x" });
+		const t = Date.now();
+		const first = await readPipeline(root, config({ github: true }));
+		expect(Date.now() - t).toBeLessThan(3_000);
+		expect(first.prs).toEqual([expect.objectContaining({ number: 6, checks: null })]);
+		await statusSettled(root);
+		const later = await readPipeline(root, config({ github: true }));
+		expect(later.prs).toEqual([expect.objectContaining({ number: 6, checks: "fail" })]);
+		// One list call and one status call: the second read used both caches.
+		expect(gh.calls().map((c) => c.slice(0, 2).join(" ")).sort()).toEqual(["api graphql", "pr list"]);
 	});
 
 	it("leaves prs null when gh fails, and never calls gh with github off", async () => {
 		gh = fakeGh();
 		gh.fail(true);
-		const failing = await readPipeline(repo({ "a.md": "x" }), config({ github: true }));
+		const failingRoot = repo({ "a.md": "x" });
+		const failing = await readPipeline(failingRoot, config({ github: true }));
 		expect(failing.prs).toBeNull();
+		await statusSettled(failingRoot);
 		const calls = gh.calls().length;
 		expect(calls).toBeGreaterThan(0);
 		gh.fail(false);
