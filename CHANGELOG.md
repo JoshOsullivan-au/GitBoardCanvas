@@ -10,6 +10,9 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 - `gitboard measure --from <iso> [--to <iso>]` reads the live pages of a Next.js app router from Grafana Tempo through `gcx` and writes the tab's data file.
 - `GET /api/architecture` serves that file.
 - Icons `Buildings`, `Door`, `House`, `Plug`, `Stethoscope`, `Storefront`, `SunHorizon`, `Timer` and `UserCircle`.
+- `architecture.calls`, `architecture.pathFolds` and `architecture.platform`: each repo describes its own database, cache and host. Rules match a call on host, path prefix or span name prefix and give its endpoint name, column, group, label and icon. An example preset for one stack is in `docs/presets/`. Without rules every call with a URL is a provider.
+- `architecture.pagesCommand`: a command that lists every page route, for apps that are not on the Next.js app router.
+- The measure file carries `format` (2) and `targets`. The board draws an older file with targets described from the current rules.
 
 ### Fixed
 
@@ -21,6 +24,7 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 - The measure reads the calls of the configured service's server span, not an upstream service's listed first in the trace.
 - A `gcx` failure fails at once instead of retrying when the trace id happens to contain `503`; the cache check's `HEAD` request gives up after 10 seconds.
 - On the Architecture tab, a provider or cache call made on every page shows once, in its own column, and a page with no request shows the measured reason instead of always "Served from the host's cache".
+- An access-check endpoint shows once, in Access checks, not also in its own database group.
 
 ## 0.1.2 (22/10/2026)
 

@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 
 import { linkOnPath } from "../paths.js";
 import { type ArchitectureConfig, serverSelector } from "./config.js";
-import { type Call, flattenTrace, readPath, shellEndpoints, type Span } from "./readPath.js";
+import { type Call, flattenTrace, readPath, shellEndpoints, type Span, type TargetInfo, targetsOf } from "./readPath.js";
 import { liveRoutes } from "./routes.js";
 
 const run = promisify(execFile);
@@ -17,6 +17,11 @@ const run = promisify(execFile);
 const MAX_WINDOW_MS = 25 * 3600_000;
 /** Tempo search returns at most this many traces. */
 const SEARCH_LIMIT = 1000;
+/**
+ * The data file's shape. 2 added `format` and `targets`; a file without `format` is 1, whose calls the server
+ * describes from the current config's rules.
+ */
+export const MEASURE_FORMAT = 2;
 
 export type Sample = {
 	sample: string;
@@ -40,6 +45,7 @@ export type RouteFigure = {
 };
 
 export type ArchitectureMap = {
+	format: number;
 	measuredAt: string;
 	window: { from: string; to: string };
 	deployment: string | null;
@@ -51,6 +57,8 @@ export type ArchitectureMap = {
 	shell: string[];
 	access: string[];
 	providers: Record<string, string>;
+	/** How the tab draws each call target: column, group, label, icon. */
+	targets: Record<string, TargetInfo>;
 	cache: { name: string; reader: string; readers: string[] } | null;
 	routes: RouteFigure[];
 };
@@ -103,7 +111,7 @@ async function whyNoRequest(c: ArchitectureConfig, route: string): Promise<strin
 	if (!c.site || /\[/.test(route)) return "No request in the window";
 	try {
 		const res = await fetch(`${c.site}${route}`, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(10_000) });
-		const cache = res.headers.get("x-vercel-cache") ?? res.headers.get("x-cache") ?? res.headers.get("cf-cache-status");
+		const cache = c.platform.cacheHeaders.map((h) => res.headers.get(h)).find((v) => v !== null);
 		if (cache && /hit/i.test(cache)) return "Served from the host's cache: no function ran, so Tempo has no server span";
 		if (res.status >= 300 && res.status < 400) return `Answers ${res.status} before the page runs`;
 	} catch {
@@ -153,7 +161,9 @@ export async function measure(root: string, c: ArchitectureConfig, from: string,
 		.map(({ id, spans }) => ({ id, spans, server: spans.find((s) => s.kind === "SPAN_KIND_SERVER" && s.service === c.tempo.service) }))
 		.filter((r): r is { id: string; spans: Span[]; server: Span } => Boolean(r.server))
 		.sort((a, b) => a.server.startNs - b.server.startNs);
-	const shell = shellEndpoints(requests.map((r) => readPath(r.spans, new Set(), c.tempo.service).calls), c.shellShare);
+	const read = (spans: Span[], shell: Set<string>) => readPath(spans, shell, c.tempo.service, c.calls, c.pathFolds);
+	const targets = targetsOf(c.calls);
+	const shell = shellEndpoints(requests.map((r) => read(r.spans, new Set()).calls), c.shellShare);
 
 	const routes: RouteFigure[] = [];
 	for (const live of liveRoutes(root, c)) {
@@ -167,7 +177,7 @@ export async function measure(root: string, c: ArchitectureConfig, from: string,
 		const samples: Sample[] = [...bySample].map(([sample, list]) => {
 			const warm = list[list.length - 1];
 			const cold = list.length > 1 ? list[0] : null;
-			const { calls } = readPath(warm.spans, shell, c.tempo.service);
+			const { calls } = read(warm.spans, shell);
 			const middleware = warm.spans.find((s) => s.name.startsWith("middleware "));
 			return {
 				sample,
@@ -176,7 +186,7 @@ export async function measure(root: string, c: ArchitectureConfig, from: string,
 				cold: cold ? { traceId: cold.id, at: iso(cold.server.startNs), serverMs: durMs(cold.server) } : null,
 				calls,
 				waves: calls.reduce((n, call) => Math.max(n, call.wave), 0),
-				databaseCalls: calls.filter((call) => call.target !== "provider" && call.target !== "redis").length,
+				databaseCalls: calls.filter((call) => targets[call.target]?.kind === "database").length,
 			};
 		});
 		routes.push({
@@ -188,11 +198,12 @@ export async function measure(root: string, c: ArchitectureConfig, from: string,
 		});
 	}
 	const last = requests.at(-1)?.server.resource ?? {};
-	const deployment = last["vercel.deployment_id"] ?? last["service.version"];
-	const host = last["vercel.deployment_id"] ? "Vercel" : typeof last["cloud.provider"] === "string" ? String(last["cloud.provider"]) : c.tempo.service;
-	const database = routes.some((r) => r.samples.some((s) => s.databaseCalls > 0)) ? "Supabase" : null;
+	const deployment = c.platform.deployment.map((k) => last[k]).find((v) => typeof v === "string");
+	const host = c.platform.server ?? (typeof last["cloud.provider"] === "string" ? last["cloud.provider"] : c.tempo.service);
+	const database = routes.some((r) => r.samples.some((s) => s.databaseCalls > 0)) ? c.platform.database : null;
 	const areaNames = [...new Set([...c.areas.map((a) => a.name), c.defaultArea])].filter((a) => routes.some((r) => r.area === a));
 	return {
+		format: MEASURE_FORMAT,
 		measuredAt: new Date().toISOString(),
 		window: { from, to },
 		deployment: typeof deployment === "string" ? deployment : null,
@@ -203,6 +214,7 @@ export async function measure(root: string, c: ArchitectureConfig, from: string,
 		shell: [...shell].sort(),
 		access: c.access,
 		providers: c.providers,
+		targets,
 		cache: c.cache ? { name: c.cache.name, reader: c.cache.reader, readers: cacheReaders(root, c) } : null,
 		routes,
 	};

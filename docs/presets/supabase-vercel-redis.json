@@ -1,0 +1,19 @@
+{
+	"calls": [
+		{ "target": "redis", "kind": "cache", "group": "Cache", "label": "Cache", "icon": "Stack", "span": "redis " },
+		{ "target": "rpc", "kind": "database", "group": "RPCs", "label": "RPC", "icon": "Lightning", "host": "*.supabase.co", "path": "/rest/v1/rpc/", "endpoint": "rpc {rest}" },
+		{ "target": "table", "kind": "database", "group": "Tables", "label": "Table", "icon": "Database", "host": "*.supabase.co", "path": "/rest/v1/", "endpoint": "table {rest}" },
+		{ "target": "auth", "kind": "database", "group": "Auth and Storage", "label": "Auth", "icon": "ShieldCheck", "host": "*.supabase.co", "path": "/auth/v1/", "endpoint": "auth {rest}" },
+		{ "target": "storage", "kind": "database", "group": "Auth and Storage", "label": "Storage", "icon": "Stack", "host": "*.supabase.co", "path": "/storage/v1/", "endpoint": "storage {first}" }
+	],
+	"pathFolds": [
+		{ "match": "/v\\d+(\\.\\d+)?/", "replace": "/" },
+		{ "match": "/act_\\d+", "replace": "/act_{id}" }
+	],
+	"platform": {
+		"server": "Vercel",
+		"database": "Supabase",
+		"deployment": ["vercel.deployment_id", "service.version"],
+		"cacheHeaders": ["x-vercel-cache", "x-cache", "cf-cache-status"]
+	}
+}

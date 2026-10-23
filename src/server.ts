@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { Marked } from "marked";
 
 import { isMeasure } from "./architecture/measure.js";
+import { targetsOf } from "./architecture/readPath.js";
 import { loadBoard } from "./board.js";
 import type { GitBoardConfig } from "./config.js";
 import { boardVersion } from "./git.js";
@@ -140,8 +141,10 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 		}
 		if (!real.startsWith(fs.realpathSync(root) + path.sep)) return none;
 		const body = fs.readFileSync(real, "utf8");
-		if (isMeasure(body)) return { body };
-		return { status: 500, error: `${config.architecture.data} is not a measure: run gitboard measure again.` };
+		if (!isMeasure(body)) return { status: 500, error: `${config.architecture.data} is not a measure: run gitboard measure again.` };
+		// A format 1 file names its call targets without describing them: describe them from the config's rules.
+		const map = JSON.parse(body) as Record<string, unknown>;
+		return map.targets ? { body } : { body: JSON.stringify({ ...map, targets: targetsOf(config.architecture.calls) }) };
 	}
 
 	function moveInput(body: unknown): MoveInput | null {

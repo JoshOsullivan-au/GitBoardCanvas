@@ -47,6 +47,6 @@ describe("architecture tab", () => {
 	});
 
 	it("escapes route and endpoint names", () => {
-		for (const raw of ["<b>${n.label}", "<b>${epLabel(", "${e.endpoint}</", "class=\"gn\">${name}"]) expect(html, raw).not.toContain(raw);
+		for (const raw of ["<b>${n.label}", "<b>${epLabel(", "${epKind(", "${e.endpoint}</", "class=\"gn\">${name}"]) expect(html, raw).not.toContain(raw);
 	});
 });

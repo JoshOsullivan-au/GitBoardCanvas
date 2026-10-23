@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // A server request's read path from its trace: every outbound call, which wave it ran in, and whether the shell or the page made it.
+import { type CallKind, type CallRule, OTHER_TARGET, type PathFold } from "./config.js";
 
 /** One OTLP span from `gcx traces get -o json`, flattened with its resource's service name. */
 export type Span = {
@@ -14,12 +15,13 @@ export type Span = {
 	resource: Record<string, unknown>;
 };
 
-/** Where a network call goes. Supabase calls split by API; anything else is a provider. */
-export type Target = "auth" | "rpc" | "table" | "storage" | "redis" | "provider";
+/** How the tab draws one target: its column, group, singular label and icon, and the words its card title drops. */
+export type TargetInfo = { kind: CallKind; group: string; label: string; icon: string | null; prefix: string };
 
 export type Call = {
 	endpoint: string;
-	target: Target;
+	/** The matching rule's target, or `provider` for a call no rule matches. */
+	target: string;
 	method: string;
 	startMs: number;
 	durMs: number;
@@ -69,34 +71,60 @@ export function flattenTrace(doc: unknown): Span[] {
 }
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+/** Numeric ids of six digits or more, as a whole path segment. */
+const LONG_ID = /\/\d{6,}(?=\/|$)/g;
+
+/** A rule's endpoint template: its own, else `{host} {path}` for a rule on the URL and `{name}` for one on the span name. */
+const templateOf = (r: CallRule) => r.endpoint ?? (r.host !== undefined || r.path !== undefined ? "{host} {path}" : "{name}");
+
+const hostMatches = (pattern: string, host: string) => (pattern.startsWith("*.") ? host.endsWith(pattern.slice(1)) : host === pattern);
 
 /**
- * A stable name for a client span: `rpc permit`, `table brands`, `auth admin/users/{id}`, `redis GET channel`,
- * or `graph.facebook.com /act_{id}/campaigns`. Ids are folded so the same call reads the same on every page.
+ * A stable name for a client span, from the first rule it matches: such as `rpc permit` for a rule with path
+ * `/rest/v1/rpc/` and endpoint `rpc {rest}`, or `api.example.com /orders/{id}` for a call no rule matches. Ids are
+ * folded (UUIDs everywhere, long numbers and `pathFolds` in `{path}` and `{rest}`) so the same call reads the same on
+ * every page.
  */
-export function endpointOf(span: Span): { endpoint: string; target: Target; method: string } | null {
+export function endpointOf(span: Span, rules: CallRule[] = [], folds: PathFold[] = []): { endpoint: string; target: string; method: string } | null {
 	if (span.kind !== "SPAN_KIND_CLIENT") return null;
-	if (span.name.startsWith("redis ")) return { endpoint: span.name, target: "redis", method: span.name.split(" ")[1] ?? "" };
 	const raw = String(span.attrs["http.url"] ?? span.attrs["url.full"] ?? span.name.replace(/^fetch \w+ /, ""));
 	const method = String(span.attrs["http.method"] ?? span.attrs["http.request.method"] ?? span.name.split(" ")[1] ?? "");
-	let url: URL;
+	let url: URL | null = null;
 	try {
 		url = new URL(raw);
 	} catch {
-		return null;
+		// A span with no URL can still match a rule on its name.
 	}
-	const p = url.pathname.replace(UUID, "{id}");
-	if (url.hostname.endsWith(".supabase.co")) {
-		if (p.startsWith("/rest/v1/rpc/")) return { endpoint: `rpc ${p.slice(13)}`, target: "rpc", method };
-		if (p.startsWith("/rest/v1/")) return { endpoint: `table ${p.slice(9)}`, target: "table", method };
-		if (p.startsWith("/auth/v1/")) return { endpoint: `auth ${p.slice(9)}`, target: "auth", method };
-		if (p.startsWith("/storage/v1/")) return { endpoint: `storage ${p.slice(12).split("/")[0]}`, target: "storage", method };
+	const p = url ? url.pathname.replace(UUID, "{id}") : "";
+	const fold = (s: string) => folds.reduce((t, f) => t.replace(new RegExp(f.match, "g"), f.replace), s).replace(LONG_ID, "/{id}");
+	const rule = rules.find(
+		(r) =>
+			(r.span === undefined || span.name.startsWith(r.span)) &&
+			(r.host === undefined || (url !== null && hostMatches(r.host, url.hostname))) &&
+			(r.path === undefined || (url !== null && p.startsWith(r.path))),
+	);
+	if (!rule && !url) return null;
+	const rest = fold(rule?.path ? p.slice(rule.path.length) : p);
+	const values: Record<string, string> = { host: url?.hostname ?? "", path: fold(p), rest, first: rest.replace(/^\//, "").split("/")[0], name: span.name };
+	const template = rule ? templateOf(rule) : "{host} {path}";
+	const endpoint = template.replace(/\{(host|path|rest|first|name)\}/g, (_, k: string) => values[k]);
+	// A rule on the span name alone takes the method from the name, as cache client spans named like `<client> GET key` carry it.
+	const onName = rule?.span !== undefined && rule.host === undefined && rule.path === undefined;
+	return { endpoint, target: rule?.target ?? OTHER_TARGET, method: onName ? (span.name.split(" ")[1] ?? "") : method };
+}
+
+/** How the tab draws each target the rules name, and the target of calls no rule matches. */
+export function targetsOf(rules: CallRule[]): Record<string, TargetInfo> {
+	const out: Record<string, TargetInfo> = {};
+	for (const r of rules) {
+		if (Object.hasOwn(out, r.target)) continue;
+		const label = r.label ?? r.target;
+		// The words before the first placeholder; a template with none is the whole name and drops nothing.
+		const template = templateOf(r);
+		out[r.target] = { kind: r.kind, group: r.group ?? label, label, icon: r.icon ?? null, prefix: template.includes("{") ? template.split("{")[0] : "" };
 	}
-	const tail = p
-		.replace(/\/v\d+(\.\d+)?\//, "/")
-		.replace(/\/act_\d+/, "/act_{id}")
-		.replace(/\/\d{6,}(?=\/|$)/g, "/{id}");
-	return { endpoint: `${url.hostname} ${tail}`, target: "provider", method };
+	out[OTHER_TARGET] = { kind: "provider", group: "Providers", label: "Provider", icon: null, prefix: "" };
+	return out;
 }
 
 /**
@@ -132,14 +160,20 @@ export function shellEndpoints(requests: { endpoint: string }[][], share = 0.9):
 }
 
 /** The server request's calls in start order, each with its wave and whether the shell or the page made it. */
-export function readPath(spans: Span[], shell: Set<string>, service?: string): { server: Span | null; calls: Call[] } {
+export function readPath(
+	spans: Span[],
+	shell: Set<string>,
+	service?: string,
+	rules: CallRule[] = [],
+	folds: PathFold[] = [],
+): { server: Span | null; calls: Call[] } {
 	// The named service's server span: a trace can hold an upstream service's server span first.
 	const server = spans.find((s) => s.kind === "SPAN_KIND_SERVER" && (!service || s.service === service)) ?? null;
 	if (!server) return { server, calls: [] };
 	// The server's own client spans: the browser's span for the same request (real user monitoring) is not a call the page made.
 	const raw = spans
 		.filter((s) => s.service === server.service && s.startNs >= server.startNs)
-		.map((s) => ({ s, e: endpointOf(s) }))
+		.map((s) => ({ s, e: endpointOf(s, rules, folds) }))
 		.filter((x): x is { s: Span; e: NonNullable<ReturnType<typeof endpointOf>> } => x.e !== null)
 		.map(({ s, e }) => ({ ...e, startMs: Math.round((s.startNs - server.startNs) / 1e6), durMs: Math.round((s.endNs - s.startNs) / 1e6) }));
 	const firstShell = new Set<string>();
