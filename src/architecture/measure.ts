@@ -140,6 +140,17 @@ export function cacheReaders(root: string, c: ArchitectureConfig): string[] {
 	return out.filter((f) => !new RegExp(`(export\\s+(async\\s+)?function|export\\s+const)\\s+${c.cache?.reader}\\b`).test(fs.readFileSync(path.join(root, f), "utf8"))).sort();
 }
 
+/** Throws when two targets give the same endpoint name: the tab knows an endpoint by its name, so it would draw one card. */
+export function checkEndpoints(calls: { endpoint: string; target: string }[]): void {
+	const targetOf = new Map<string, string>();
+	for (const { endpoint, target } of calls) {
+		const seen = targetOf.get(endpoint);
+		if (seen !== undefined && seen !== target)
+			throw new Error(`architecture.calls: targets "${seen}" and "${target}" both name a call "${endpoint}"; give their endpoint templates different words`);
+		targetOf.set(endpoint, target);
+	}
+}
+
 const durMs = (s: Span) => Math.round((s.endNs - s.startNs) / 1e6);
 const iso = (ns: number) => new Date(Math.round(ns / 1e6)).toISOString();
 
@@ -163,7 +174,9 @@ export async function measure(root: string, c: ArchitectureConfig, from: string,
 		.sort((a, b) => a.server.startNs - b.server.startNs);
 	const read = (spans: Span[], shell: Set<string>) => readPath(spans, shell, c.tempo.service, c.calls, c.pathFolds);
 	const targets = targetsOf(c.calls);
-	const shell = shellEndpoints(requests.map((r) => read(r.spans, new Set()).calls), c.shellShare);
+	const all = requests.map((r) => read(r.spans, new Set()).calls);
+	checkEndpoints(all.flat());
+	const shell = shellEndpoints(all, c.shellShare);
 
 	const routes: RouteFigure[] = [];
 	for (const live of liveRoutes(root, c)) {

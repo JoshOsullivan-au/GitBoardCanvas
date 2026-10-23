@@ -197,7 +197,7 @@ Calls are named from the server's client spans. Each rule in `calls` matches a s
 | `label` | The singular name in the details, such as `"RPC"`. Defaults to `target`. |
 | `icon` | The card icon, from the group icon names above. Defaults to a database, stack or plug icon by kind. |
 
-A rule needs `host`, `path` or `span`. A call with a URL that no rule matches is a provider named `{host} {path}`; a call with neither is left out. A rule on the span name alone takes the method from the span name's second word. So the same call reads the same on every page, UUIDs anywhere in the path read `{id}` first; then `pathFolds` run on `{path}` and `{rest}`, each replacing every match; then numbers of six digits or more, as a whole path segment, read `{id}`.
+A rule needs `host`, `path` or `span`. A call with a URL that no rule matches is a provider named `{host} {path}`; a call with neither is left out. A rule on the span name alone takes the method from the span name's second word. So the same call reads the same on every page, UUIDs anywhere in the path read `{id}` first; then `pathFolds` run on `{path}` and `{rest}`, each replacing every match; then numbers of six digits or more, as a whole path segment, read `{id}`, including one straight after a rule's `path`. The tab knows an endpoint by its name, so `gitboard measure` refuses to write when two targets give a call the same name; give their templates different words.
 
 The `HEAD` check, the deployment id and the column names come from `platform`. The defaults read standard headers and OpenTelemetry attributes; set `platform` when your host uses its own.
 

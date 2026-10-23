@@ -1532,8 +1532,9 @@ function fixedCard(id, iconName, title, sub, open) {
   return `<div class="card lg lg-regular" data-fixed="${id}"${open ? ` data-open="${open}" role="button" tabindex="0"` : ""}><span class="tile">${icon(iconName)}</span><span class="tx"><b>${esc(title)}</b><span>${esc(sub)}</span></span><span class="st">${open ? icon("CaretRight") : ""}</span></div>`;
 }
 
-function groupHtml(col, name, iconName, cardsHtml, count) {
-  const key = `${col}|${name}`;
+/* `id` keeps a built-in group's collapse state apart from a configured group with the same heading. */
+function groupHtml(col, name, iconName, cardsHtml, count, id = name) {
+  const key = `${col}|${id}`;
   const open = !state.collapsed.has(key);
   return `<div class="grp${count ? "" : " empty"}"${open ? "" : " data-collapsed"} data-key="${esc(key)}">
     <button type="button" class="gh" data-group="${esc(key)}" aria-expanded="${open}"><span class="car">${icon("CaretRight")}</span><span class="gi">${icon(iconName)}</span><span class="gn">${esc(name)}</span><span class="pill">${count}</span></button>
@@ -1562,8 +1563,8 @@ function epGroups() {
   const providers = grouped("provider", all.filter((e) => kindOf(e.target) === "provider"));
   return {
     database: [
-      ["Shell", "Stack", sort(database.filter((e) => e.shell))],
-      ["Access checks", "ShieldCheck", sort(all.filter((e) => !e.shell && ACCESS.has(e.endpoint)))],
+      ["Shell", "Stack", sort(database.filter((e) => e.shell)), ":shell"],
+      ["Access checks", "ShieldCheck", sort(all.filter((e) => !e.shell && ACCESS.has(e.endpoint))), ":access"],
       ...grouped("database", database.filter((e) => !e.shell && !ACCESS.has(e.endpoint))),
     ].filter(([, , list]) => list.length),
     providers: providers.some(([, , list]) => list.length) ? providers.filter(([, , list]) => list.length) : providers.filter(([name]) => name === OTHER.group),
@@ -1592,10 +1593,10 @@ function render() {
   const pages = column("pages", 2, "Pages", routeCount,
     AREAS.map((area) => { const list = shown.filter((n) => n.area === area); return list.length ? groupHtml("pages", area, areaIcon(area), list.map(routeCard).join(""), list.length) : ""; }).join(""), true);
   const database = column("database", 3, map.platform?.database ?? "Database", g.database.reduce((n, [, , l]) => n + l.length, 0),
-    g.database.map(([name, ic, list]) => groupHtml("database", name, ic, list.map((e) => epCard(e, used)).join(""), list.length)).join(""));
+    g.database.map(([name, ic, list, id]) => groupHtml("database", name, ic, list.map((e) => epCard(e, used)).join(""), list.length, id)).join(""));
   const cacheName = map.cache?.name ?? Object.values(TARGETS).find((t) => t.kind === "cache")?.group ?? "Cache";
   const cacheGroup = map.cache || g.cache.length
-    ? groupHtml("out", cacheName, "Stack", g.cache.length ? g.cache.map((e) => epCard(e, used)).join("") : fixedCard("cache", "Stack", cacheName, "No call in this window", "cache"), g.cache.length || 1)
+    ? groupHtml("out", cacheName, "Stack", g.cache.length ? g.cache.map((e) => epCard(e, used)).join("") : fixedCard("cache", "Stack", cacheName, "No call in this window", "cache"), g.cache.length || 1, ":cache")
     : "";
   const providerCount = g.providers.reduce((n, [, , l]) => n + l.length, 0);
   const out = column("out", 4, map.cache ? "Cache and providers" : "Providers", g.cache.length + providerCount + (map.cache && !g.cache.length ? 1 : 0),

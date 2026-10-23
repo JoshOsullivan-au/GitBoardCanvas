@@ -6,7 +6,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { architectureConfig, DEFAULT_ARCHITECTURE, serverSelector } from "../src/architecture/config.js";
-import { cacheReaders } from "../src/architecture/measure.js";
+import { cacheReaders, checkEndpoints } from "../src/architecture/measure.js";
 import { assignWaves, endpointOf, readPath, shellEndpoints, type Span, targetsOf } from "../src/architecture/readPath.js";
 import { areaOf, liveRoutes, pageRoutes } from "../src/architecture/routes.js";
 
@@ -185,6 +185,18 @@ describe("read path", () => {
 		expect(of(call(`${u}/auth/v1/admin/users/12345678`, 0, 1))?.endpoint).toBe("auth admin/users/{id}");
 		expect(of(call(`${u}/rest/v1/items/v1/x`, 0, 1))?.endpoint).toBe("table items/x");
 		expect(of(call("https://api.x.com/v1/a/v2/b", 0, 1))?.endpoint).toBe("api.x.com /a/b");
+	});
+
+	it("folds a numeric id right after a rule's path, in {rest} and {first}", () => {
+		const rules = architectureConfig({ calls: [{ target: "orders", kind: "database", host: "api.example.com", path: "/orders/", endpoint: "orders {rest}" }, { target: "o2", kind: "database", host: "two.example.com", path: "/orders/", endpoint: "orders2 {first}" }] }).calls;
+		expect(endpointOf(call("https://api.example.com/orders/1234567", 0, 1), rules)?.endpoint).toBe("orders {id}");
+		expect(endpointOf(call("https://api.example.com/orders/1234567/items/7654321", 0, 1), rules)?.endpoint).toBe("orders {id}/items/{id}");
+		expect(endpointOf(call("https://two.example.com/orders/1234567/items", 0, 1), rules)?.endpoint).toBe("orders2 {id}");
+	});
+
+	it("refuses two targets that give the same endpoint name", () => {
+		expect(() => checkEndpoints([{ endpoint: "orders", target: "db" }, { endpoint: "orders", target: "db" }])).not.toThrow();
+		expect(() => checkEndpoints([{ endpoint: "orders", target: "db" }, { endpoint: "orders", target: "api" }])).toThrow(/targets "db" and "api" both name a call "orders"/);
 	});
 
 	it("fills {first} without a leading slash, and keeps a whole-word template whole on the card", () => {

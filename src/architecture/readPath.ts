@@ -104,7 +104,9 @@ export function endpointOf(span: Span, rules: CallRule[] = [], folds: PathFold[]
 			(r.path === undefined || (url !== null && p.startsWith(r.path))),
 	);
 	if (!rule && !url) return null;
-	const rest = fold(rule?.path ? p.slice(rule.path.length) : p);
+	// Folds look for ids after a slash: give `{rest}` its slash back while folding, so an id right after `path` folds too.
+	const after = rule?.path ? p.slice(rule.path.length) : p;
+	const rest = after.startsWith("/") ? fold(after) : fold(`/${after}`).slice(1);
 	const values: Record<string, string> = { host: url?.hostname ?? "", path: fold(p), rest, first: rest.replace(/^\//, "").split("/")[0], name: span.name };
 	const template = rule ? templateOf(rule) : "{host} {path}";
 	const endpoint = template.replace(/\{(host|path|rest|first|name)\}/g, (_, k: string) => values[k]);
