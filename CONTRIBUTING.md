@@ -30,6 +30,7 @@ Both must pass before you open a pull request. Move tests run in temporary git r
 - No product-specific names in code, docs or templates.
 - Docs use Australian English, dates as DD/MM/YYYY, and plain words.
 - One runtime dependency (`marked`). Talk to us before adding another.
+- The board page is React in `src/web` (ADR 0004). Keep the board's look in `src/web/styles/board.css`; shadcn/ui parts go in `src/web/components/ui` with `npx shadcn@latest add`.
 
 ## Commits
 

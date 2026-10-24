@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: MIT -->
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitBoard Canvas</title>
+<script>
+/* Filled by the board server: the icon set, and true when gitboard.config.json has an architecture block. */
+const ICONS = __ICONS__;
+const ARCHITECTURE = __ARCHITECTURE__;
+window.GITBOARD = { icons: ICONS, architecture: ARCHITECTURE };
+/* The viewer's theme before the first paint. */
+try {
+  const saved = localStorage.getItem("gitboard-theme");
+  document.documentElement.classList.toggle("dark", saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
+} catch {
+  document.documentElement.classList.toggle("dark", matchMedia("(prefers-color-scheme: dark)").matches);
+}
+</script>
+<script type="module" src="./main.tsx"></script>
+</head>
+<body>
+<div id="root"></div>
+</body>
+</html>

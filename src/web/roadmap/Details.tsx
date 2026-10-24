@@ -1,0 +1,336 @@
+// SPDX-License-Identifier: MIT
+// A feature's details panel, and its phase files rendered in place: roadmap links open in place, Back returns.
+import { Fragment, type MouseEvent, useLayoutEffect, useRef } from "react";
+
+import { ddmm, plural } from "../lib/format";
+import { GIT_STEPS, prStates } from "../lib/git";
+import { Icon, iconSvg } from "../lib/icon";
+import { cardState, type Feature, groupIcon, isDone, type Model, stageName } from "./model";
+
+export type Crumb = { path: string; label: string; phaseIndex: number | null };
+export type DetailsView = { id: string } & ({ kind: "card" } | ({ kind: "doc"; trail: Crumb[]; html: string } & Crumb));
+
+const VIA = { roadmap: "roadmap files", branch: "branch name", code: "code it names" };
+
+type Open = { details: (id: string) => void; doc: (id: string, path: string, label: string, phaseIndex: number | null, trail?: Crumb[]) => void };
+
+function FeatureRows({ m, byId, ids, open }: { m: Model; byId: Map<string, Feature>; ids: string[]; open: Open }) {
+	const list = ids
+		.map((id) => byId.get(id))
+		.filter((n): n is Feature => Boolean(n))
+		.sort((a, b) => a.stage - b.stage || a.title.localeCompare(b.title));
+	return (
+		<ul className="rel">
+			{list.map((n) => {
+				const st = cardState(m, n);
+				return (
+					<li key={n.id}>
+						<button type="button" className={`relr ${st.cls}`} data-goto={n.id} onClick={() => open.details(n.id)}>
+							<span className="tile">
+								<Icon name={groupIcon(m, n.group)} />
+							</span>
+							<span className="tx">
+								<b>{n.title}</b>
+								<span>
+									{n.stage} {stageName(m, n.stage)} · {st.word}
+								</span>
+							</span>
+						</button>
+					</li>
+				);
+			})}
+		</ul>
+	);
+}
+
+function Git({ m, c }: { m: Model; c: Feature }) {
+	const rows = c.git.map((g) => {
+		const counts = { wip: g.wip, staged: g.staged, committed: g.committed, pr: g.pr ? 1 : 0 };
+		const files = (
+			[
+				["WIP", g.files.wip, g.wip],
+				["Staged", g.files.staged, g.staged],
+				["Committed", g.files.committed, g.committed],
+			] as const
+		).filter(([, , n]) => n);
+		const states = g.pr ? prStates(g.pr) : [];
+		return (
+			<li className="gitb" key={g.branch}>
+				<div className="gbh">
+					<Icon name="GitBranch" />
+					<b>{g.branch}</b>
+					<span className="via">via {VIA[g.via]}</span>
+					{g.pr ? (
+						<a href={g.pr.url} target="_blank" rel="noopener noreferrer">
+							PR #{g.pr.number}
+							{g.pr.draft ? " (draft)" : ""}
+						</a>
+					) : null}
+				</div>
+				{states.length ? (
+					<ul className="prst" aria-label="Pull request status">
+						{states.map((s) => (
+							<li key={s.k} className={s.attn ? "gs-attn" : "gs-pr"}>
+								{s.attn ? <Icon name="Warning" /> : null}
+								{s.text}
+							</li>
+						))}
+					</ul>
+				) : null}
+				<ol className="track">
+					{GIT_STEPS.map((x) => (
+						<li key={x.k} className={counts[x.k] ? `on gs-${x.k}` : ""}>
+							<span className="dot">
+								<Icon name={x.icon} />
+							</span>
+							<span className="tn">{x.name}</span>
+							<b>{x.k === "pr" ? (g.pr ? `#${g.pr.number}` : "") : counts[x.k] || ""}</b>
+						</li>
+					))}
+					<li className="">
+						<span className="dot">
+							<Icon name="GitMerge" />
+						</span>
+						<span className="tn">Landed</span>
+						<b></b>
+					</li>
+				</ol>
+				{g.commits ? <div className="gnote">{plural(g.commits, "commit")} not on main</div> : null}
+				{files.length ? (
+					<details className="gfiles">
+						<summary>
+							<Icon name="CaretRight" />
+							Files
+						</summary>
+						{files.map(([k, list, n]) => (
+							<Fragment key={k}>
+								<div className="gfk">{k}</div>
+								<ul>
+									{list.map((f) => (
+										<li key={f}>{f}</li>
+									))}
+									{n > list.length ? <li className="more">{n - list.length} more</li> : null}
+								</ul>
+							</Fragment>
+						))}
+					</details>
+				) : null}
+			</li>
+		);
+	});
+	const landed = c.landed ? (
+		<div className="landed">
+			<Icon name="GitMerge" />
+			<span>
+				Landed on main {ddmm(c.landed.at)} · {c.landed.sha}
+			</span>
+		</div>
+	) : null;
+	const gh = m.github === false ? <div className="gnote">Pull requests: Missing GitHub</div> : null;
+	if (!rows.length && !landed && !gh) return null;
+	return (
+		<section className="ps">
+			<h5>
+				<Icon name="GitBranch" />
+				Git
+			</h5>
+			{rows.length ? <ul className="gitl">{rows}</ul> : null}
+			{landed}
+			{gh}
+		</section>
+	);
+}
+
+function Relations({ m, byId, c, open }: { m: Model; byId: Map<string, Feature>; c: Feature; open: Open }) {
+	const unblocks = c.dependents.filter((id) => !isDone(m, byId.get(id)!));
+	const linked = c.linkIds.filter((id) => !c.blockedBy.includes(id) && !unblocks.includes(id));
+	const items = [...c.decisions.map((d) => ["Decision", d]), ...c.ops.map((o) => ["Ops", o])];
+	return (
+		<>
+			{c.blockedBy.length ? (
+				<section className="ps">
+					<h5>
+						<Icon name="Lock" />
+						Blocked by
+					</h5>
+					<FeatureRows m={m} byId={byId} ids={c.blockedBy} open={open} />
+				</section>
+			) : null}
+			{c.gated ? (
+				<section className="ps">
+					<h5>
+						<Icon name="HourglassMedium" />
+						Waiting on you
+					</h5>
+					<ul className="gate">
+						{items.slice(0, 12).map(([k, t], i) => (
+							<li key={i}>
+								<span className="chip2">{k}</span>
+								<span>{t}</span>
+							</li>
+						))}
+					</ul>
+					{items.length > 12 ? <div className="more">{items.length - 12} more</div> : null}
+				</section>
+			) : null}
+			{unblocks.length ? (
+				<section className="ps">
+					<h5>
+						<Icon name="ArrowRight" />
+						Unblocks
+					</h5>
+					<FeatureRows m={m} byId={byId} ids={unblocks} open={open} />
+				</section>
+			) : null}
+			{linked.length ? (
+				<section className="ps">
+					<h5>
+						<Icon name="Link" />
+						Linked
+					</h5>
+					<FeatureRows m={m} byId={byId} ids={linked} open={open} />
+				</section>
+			) : null}
+		</>
+	);
+}
+
+function resolveRel(fromFile: string, href: string): string {
+	const parts = fromFile.split("/");
+	parts.pop();
+	for (const seg of href.split("/")) {
+		if (seg === "." || seg === "") continue;
+		if (seg === "..") parts.pop();
+		else parts.push(seg);
+	}
+	return parts.join("/");
+}
+
+function Doc({ m, c, view, open, close }: { m: Model; c: Feature; view: Extract<DetailsView, { kind: "doc" }>; open: Open; close: () => void }) {
+	const article = useRef<HTMLElement>(null);
+	const back = useRef<HTMLButtonElement>(null);
+	useLayoutEffect(() => {
+		const md = article.current!;
+		// Task boxes as Phosphor glyphs, not the browser's checkbox.
+		md.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((box) => {
+			const mark = document.createElement("span");
+			mark.className = `tick${box.checked ? " on" : ""}`;
+			mark.setAttribute("role", "img");
+			mark.setAttribute("aria-label", box.checked ? "Done" : "Not done");
+			mark.innerHTML = iconSvg(box.checked ? "CheckSquare" : "Square");
+			box.replaceWith(mark);
+		});
+		md.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
+			if (/^https?:/i.test(a.getAttribute("href")!)) {
+				a.target = "_blank";
+				a.rel = "noopener noreferrer";
+			}
+		});
+		back.current?.focus();
+	}, [view.html]);
+	const onClick = (e: MouseEvent<HTMLElement>) => {
+		const a = (e.target as Element).closest("a[href]");
+		if (!a) return;
+		const href = a.getAttribute("href")!;
+		if (/^https?:/i.test(href)) return;
+		e.preventDefault();
+		if (href.startsWith("#")) {
+			article.current?.querySelector(`[id="${CSS.escape(href.slice(1))}"]`)?.scrollIntoView();
+			return;
+		}
+		let target = decodeURI(href.split("#")[0]);
+		if (target.endsWith("/")) target += "README.md";
+		const next = resolveRel(view.path, target);
+		if (!next.startsWith(`${m.roadmapDir}/`) || !next.endsWith(".md")) return;
+		open.doc(c.id, next, next.split("/").slice(-2).join("/"), null, [...view.trail, { path: view.path, label: view.label, phaseIndex: view.phaseIndex }]);
+	};
+	const prev = view.trail[view.trail.length - 1];
+	return (
+		<div className="dlg">
+			<button type="button" className="x" aria-label="Close" onClick={close}>
+				<Icon name="X" />
+			</button>
+			<div className="doc-head">
+				<button
+					type="button"
+					className="icon-btn"
+					data-back
+					aria-label="Back"
+					ref={back}
+					onClick={() => (prev ? open.doc(c.id, prev.path, prev.label, prev.phaseIndex, view.trail.slice(0, -1)) : open.details(c.id))}
+				>
+					<Icon name="CaretLeft" />
+				</button>
+				<span className="crumb">
+					{c.title} · {view.label}
+				</span>
+			</div>
+			{/* The server renders the markdown with raw HTML escaped (R11). */}
+			<article className="md" tabIndex={0} ref={article} onClick={onClick} dangerouslySetInnerHTML={{ __html: view.html }} />
+		</div>
+	);
+}
+
+export function Details({ m, byId, view, open, close }: { m: Model; byId: Map<string, Feature>; view: DetailsView; open: Open; close: () => void }) {
+	const c = byId.get(view.id);
+	if (!c) return null;
+	if (view.kind === "doc") return <Doc m={m} c={c} view={view} open={open} close={close} />;
+	const pct = c.total ? Math.round((c.done / c.total) * 100) : 0;
+	const shown = c.open.slice(0, 12);
+	const more = c.total - c.done - shown.length;
+	return (
+		<div className="dlg">
+			<button type="button" className="x" aria-label="Close" onClick={close}>
+				<Icon name="X" />
+			</button>
+			<h2 id="d-title">{c.title}</h2>
+			<div className="sub">
+				{stageName(m, c.stage)} · {c.group}
+			</div>
+			{c.total ? (
+				<div className="figure-row">
+					<span className="figure">
+						{c.done}/{c.total}
+					</span>
+					<span className="meter">
+						<i style={{ width: `${pct}%` }}></i>
+					</span>
+				</div>
+			) : null}
+			<Relations m={m} byId={byId} c={c} open={open} />
+			<Git m={m} c={c} />
+			{c.phaseList.length ? (
+				<ul className="phase-list">
+					{c.phaseList.map((p, i) => (
+						<li key={p.path}>
+							<button type="button" className="phase" data-phase={i} onClick={() => open.doc(c.id, p.path, `${p.num} ${p.title}`, i)}>
+								<span className="num">{p.num}</span>
+								<span className="pt">{p.title}</span>
+								{p.total ? (
+									<span className="pf">
+										{p.done}/{p.total}
+									</span>
+								) : null}
+								{p.total && p.done === p.total ? <Icon name="CheckCircle" /> : null}
+							</button>
+						</li>
+					))}
+				</ul>
+			) : (
+				<>
+					{shown.length ? (
+						<ul className="open">
+							{shown.map((t, i) => (
+								<li key={i}>
+									<Icon name="Circle" />
+									<span>{t}</span>
+								</li>
+							))}
+						</ul>
+					) : null}
+					{more > 0 ? <div className="more">{more} more open</div> : null}
+				</>
+			)}
+		</div>
+	);
+}

@@ -113,7 +113,7 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 
 - R1. Runs on Node 22.12 or later on macOS, Linux and Windows (WSL), with git 2.38 or later.
 - R2. `npx gitboard-canvas` in any git repo starts the board; `npm i -D gitboard-canvas` installs the `gitboard` command for a `"board": "gitboard"` script.
-- R3. One runtime dependency (`marked`). No database, no account, no network call except `gh` for pull requests, and `gcx` and an optional `HEAD` to `architecture.site` when the person runs `gitboard measure`.
+- R3 (ADR 0004). One runtime dependency (`marked`). The board page is built from React and Tailwind at build time and ships inlined in `dist/ui/board.html`; neither is a runtime dependency. No database, no account, no network call except `gh` for pull requests, and `gcx` and an optional `HEAD` to `architecture.site` when the person runs `gitboard measure`.
 - R4. `gitboard init` creates the lifecycle folder, its five stage folders, a README per stage, the feature templates and a `gitboard.config.json`, and adds `.worktrees/` to `.gitignore` when it is missing. It never overwrites an existing file or removes a line.
 
 ### 2.2 CLI

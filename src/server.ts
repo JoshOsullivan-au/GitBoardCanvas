@@ -18,7 +18,9 @@ import { moveFeature, planMove } from "./move.js";
 import { type Pipeline, readPipeline } from "./pipeline.js";
 import type { MoveInput } from "./types.js";
 
-const UI = path.join(path.dirname(fileURLToPath(import.meta.url)), "ui");
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+/** The built page sits beside the compiled server; run from src (the tests), it is the last build's. */
+const UI = fs.existsSync(path.join(HERE, "ui", "board.html")) ? path.join(HERE, "ui") : path.join(HERE, "..", "dist", "ui");
 const MAX_BODY = 16 * 1024;
 
 export type BoardServerOptions = {
