@@ -13,10 +13,21 @@
   --popover-foreground: var(--foreground);
   --secondary-foreground: oklch(0.205 0 0);
   --accent-foreground: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
+/* shadcn's dark sidebar primary is a saturated blue; the board keeps it neutral. */
 .dark {
   --secondary-foreground: oklch(0.985 0 0);
   --accent-foreground: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.922 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
 @theme inline {
@@ -41,6 +52,11 @@
   --color-sidebar: var(--sidebar);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -49,3 +65,14 @@
   --font-heading: var(--font-heading);
 }
 
+
+/* The shell's width rule: beside the sidebar (md and up), the map's link corridors narrow from 88 px to 64 px, so the
+   1,284 px map fits at 1440 wide with the sidebar in icon mode. */
+@media (min-width: 768px) {
+  .arch .fwcols { column-gap: 64px; }
+}
+
+/* Below md the sidebar is an off-canvas sheet and the top bar wraps, so a view's tools never push the trigger away. */
+@media (max-width: 767px) {
+  [data-slot="sidebar-inset"] .tools { flex-wrap: wrap; }
+}
