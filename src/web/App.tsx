@@ -27,11 +27,11 @@ export function App() {
 					</>
 				}
 			>
-				<div className="scroll" id="scroll" aria-label="Roadmap" hidden={view !== "roadmap"}>
+				<div className="scroll" id="scroll" role="region" aria-label="Roadmap" hidden={view !== "roadmap"}>
 					<Roadmap tools={roadmapTools} />
 				</div>
 				{arch ? (
-					<div className="scroll" id="archScroll" aria-label="Architecture" hidden={view !== "architecture"}>
+					<div className="scroll" id="archScroll" role="region" aria-label="Architecture" hidden={view !== "architecture"}>
 						<Architecture active={view === "architecture"} tools={archTools} />
 					</div>
 				) : null}

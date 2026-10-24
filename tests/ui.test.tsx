@@ -188,6 +188,8 @@ describe("board shell", () => {
 		expect(shell).toContain('<Sidebar variant="inset" collapsible="icon">');
 		expect(shell).toContain('aria-current={view === v.view ? "page" : undefined}');
 		expect(shell).toContain("render={<a href={viewHref(v.view)} />}");
+		// Without a tab role, a view's label reaches assistive tech only on a landmark.
+		expect(read("App.tsx").match(/role="region" aria-label="(Roadmap|Architecture)"/g)).toHaveLength(2);
 		expect(source).not.toContain("document.cookie");
 	});
 
