@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { prStates, prWorst } from "../src/web/lib/git";
+import { parseView, sidebarOpen, startView, viewHref } from "../src/web/lib/shell";
 import { Card } from "../src/web/roadmap/Card";
 import { buildModel, filterOptions } from "../src/web/roadmap/model";
 import type { Board, Card as CardData } from "../src/types.js";
@@ -141,24 +142,71 @@ describe("architecture tab", () => {
 		for (const name of new Set([...named, ...fixed, ...used])) expect(Object.keys(icons), name).toContain(name);
 	});
 
-	it("puts the tabs in the header as pills, Roadmap first and the default, remembered per viewer", () => {
-		const app = read("App.tsx");
-		expect(app).toContain('(["roadmap", "architecture"] as const)');
-		expect(app).toContain('loadText("gitboard-tab") === "architecture" ? "architecture" : "roadmap"');
-		expect(app).toMatch(/const arch = architectureOn\(\);[\s\S]*\{arch \? \(\s*<div className="tabs" role="tablist"/);
-	});
-
 	it("routes links through one shared router", () => {
 		expect(source.match(/const channel = /g)).toHaveLength(1);
 		expect(read("roadmap/Roadmap.tsx")).toContain("drawRoutes(cols, links)");
 		expect(read("architecture/Architecture.tsx")).toContain("drawRoutes(");
 	});
 
-	it("keeps the approved fixed columns", () => {
+	it("keeps the approved fixed columns, with 64 px corridors beside the sidebar", () => {
 		expect(css).toContain(".arch .fwcols { grid-template-columns: 216px 292px 292px 292px; column-gap: 88px;");
+		expect(read("styles/index.css")).toMatch(/@media \(min-width: 768px\) \{\s*\.arch \.fwcols \{ column-gap: 64px; \}/);
 	});
 
 	it("lets Tailwind scan only the shadcn parts, so board class names never become utilities", () => {
 		expect(read("styles/index.css")).toMatch(/@import "tailwindcss" source\(none\);[\s\S]*@source "\.\.\/components";/);
+	});
+});
+
+describe("board shell", () => {
+	it("gives each view a hash route and leaves hashes that are not routes alone", () => {
+		expect(viewHref("architecture")).toBe("#/architecture");
+		expect(parseView("#/roadmap", true)).toBe("roadmap");
+		expect(parseView("#/architecture", true)).toBe("architecture");
+		expect(parseView("#/architecture/main?x=1", true)).toBe("architecture");
+		expect(parseView("#/architecture", false)).toBe("roadmap");
+		expect(parseView("#/elsewhere", true)).toBe("roadmap");
+		for (const hash of ["", "#", "#heading-anchor"]) expect(parseView(hash, true), hash).toBeNull();
+	});
+
+	it("opens on the hash's view, else the one last chosen, Roadmap first and the default", () => {
+		expect(startView("#/roadmap", true, "architecture")).toBe("roadmap");
+		expect(startView("", true, "architecture")).toBe("architecture");
+		expect(startView("", false, "architecture")).toBe("roadmap");
+		expect(startView("", true, null)).toBe("roadmap");
+	});
+
+	it("expands the sidebar on the Roadmap and folds it to icons on Architecture until the viewer toggles it", () => {
+		expect(sidebarOpen("roadmap", null)).toBe(true);
+		expect(sidebarOpen("architecture", null)).toBe(false);
+		expect(sidebarOpen("architecture", true)).toBe(true);
+		expect(sidebarOpen("roadmap", false)).toBe(false);
+	});
+
+	it("builds the shell from shadcn's inset Sidebar with links that carry aria-current, and writes no cookie", () => {
+		const shell = read("components/shell.tsx");
+		expect(shell).toContain('<Sidebar variant="inset" collapsible="icon">');
+		expect(shell).toContain('aria-current={view === v.view ? "page" : undefined}');
+		expect(shell).toContain("render={<a href={viewHref(v.view)} />}");
+		// Without a tab role, a view's label reaches assistive tech only on a landmark.
+		expect(read("App.tsx").match(/role="region" aria-label="(Roadmap|Architecture)"/g)).toHaveLength(2);
+		expect(source).not.toContain("document.cookie");
+	});
+
+	it("closes the phone sheet when any sidebar link is chosen, and wraps the top bar on the room it has", () => {
+		const shell = read("components/shell.tsx");
+		expect(shell).toContain("const close = () => setOpenMobile(false);");
+		expect(shell.match(/onClick=\{close\}/g)).toHaveLength(2);
+		expect(shell).not.toContain("flex-nowrap");
+		expect(read("styles/index.css")).toContain('[data-slot="sidebar-inset"] .tools { flex-wrap: wrap; }');
+	});
+
+	it("remembers a view opened by its URL as the last choice", () => {
+		expect(read("lib/shell.ts")).toMatch(/history\.replaceState[^\n]*\n[^\n]*\n\t\tsave\("gitboard-tab", view\);/);
+	});
+
+	it("keeps the dark sidebar primary neutral, not shadcn's blue", () => {
+		const dark = read("styles/index.css").match(/\.dark \{([^}]*)\}/)![1];
+		expect(dark).toContain("--sidebar-primary: oklch(0.922 0 0);");
 	});
 });

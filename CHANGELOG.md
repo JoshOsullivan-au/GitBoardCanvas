@@ -6,6 +6,7 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
 ### Changed
 
+- The board page sits in a shell: an inset sidebar links the Roadmap and Architecture views and the theme toggle, and a slim top bar carries the sidebar trigger, the view's name and its tools. Each view has a URL (`#/roadmap`, `#/architecture`), so back, forward and reload keep it. The sidebar opens on the Roadmap and folds to icons on Architecture until you toggle it (⌘B or Ctrl+B), and the map's link corridors narrow to 64 px beside it so the map fits at 1440 wide. Page size is 153 KB gzipped, up from 96 KB.
 - The board page is built in React from `src/web` and ships as one inlined page, with the same look and behaviour. shadcn/ui parts can be added on the board's tokens (ADR 0004). React, Vite and Tailwind are build-time only; the one runtime dependency is still `marked`.
 
 ### Added

@@ -53,5 +53,5 @@ Risks:
 
 ## Action items
 
-1. [ ] Board shell: SidebarProvider, inset Sidebar, top bar and hash routes around the two views.
-2. [ ] Measure the bundle again once the shell's shadcn parts are added.
+1. [x] Board shell: SidebarProvider, inset Sidebar, top bar and hash routes around the two views.
+2. [x] Measure the bundle again once the shell's shadcn parts are added: 153 KB gzipped (156,291 bytes at gzip -9), up from 96 KB, with Base UI, Floating UI and the shadcn Sidebar, Sheet, Tooltip, Button, Input, Separator and Skeleton parts.
