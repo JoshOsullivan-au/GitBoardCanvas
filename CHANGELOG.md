@@ -4,6 +4,10 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
 ## Unreleased
 
+### Changed
+
+- The board page is built in React from `src/web` and ships as one inlined page, with the same look and behaviour. shadcn/ui parts can be added on the board's tokens (ADR 0004). React, Vite and Tailwind are build-time only; the one runtime dependency is still `marked`.
+
 ### Added
 
 - Architecture tab beside the Roadmap board, shown when `gitboard.config.json` has an `architecture` block. It lays out every page the app serves (request, pages, database, cache and providers), with each page's warm server time against a budget, its calls and their waves, a hover trace drawn with the board's own link routing, and a read path per page and per endpoint.
