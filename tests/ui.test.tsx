@@ -191,6 +191,18 @@ describe("board shell", () => {
 		expect(source).not.toContain("document.cookie");
 	});
 
+	it("closes the phone sheet when any sidebar link is chosen, and wraps the top bar on the room it has", () => {
+		const shell = read("components/shell.tsx");
+		expect(shell).toContain("const close = () => setOpenMobile(false);");
+		expect(shell.match(/onClick=\{close\}/g)).toHaveLength(2);
+		expect(shell).not.toContain("flex-nowrap");
+		expect(read("styles/index.css")).toContain('[data-slot="sidebar-inset"] .tools { flex-wrap: wrap; }');
+	});
+
+	it("remembers a view opened by its URL as the last choice", () => {
+		expect(read("lib/shell.ts")).toMatch(/history\.replaceState[^\n]*\n[^\n]*\n\t\tsave\("gitboard-tab", view\);/);
+	});
+
 	it("keeps the dark sidebar primary neutral, not shadcn's blue", () => {
 		const dark = read("styles/index.css").match(/\.dark \{([^}]*)\}/)![1];
 		expect(dark).toContain("--sidebar-primary: oklch(0.922 0 0);");

@@ -29,13 +29,15 @@ export function startView(hash: string, arch: boolean, last: string | null): Vie
 }
 
 /**
- * The current view, following the hash. A page opened with no route gets its start view written into the URL, so Back
- * to it finds a route. A hash that is not a route leaves the view as it is.
+ * The current view, following the hash, remembered as the viewer's last choice. A page opened with no route gets its
+ * start view written into the URL, so Back to it finds a route. A hash that is not a route leaves the view as it is.
  */
 export function useView(arch: boolean): View {
 	const [view, setView] = useState<View>(() => startView(location.hash, arch, loadText("gitboard-tab")));
 	useEffect(() => {
 		if (!parseView(location.hash, arch)) history.replaceState(history.state, "", viewHref(view));
+		// A view opened by its URL counts as the viewer's choice, as one opened from the sidebar does.
+		save("gitboard-tab", view);
 		// Once, on load: later hashes that are not routes are anchors, not a missing route.
 	}, []);
 	useEffect(() => {

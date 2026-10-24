@@ -21,6 +21,7 @@ import {
 	SidebarProvider,
 	SidebarRail,
 	SidebarTrigger,
+	useSidebar,
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -67,10 +68,62 @@ function useResizeSignal() {
 	return ref;
 }
 
+/** The sidebar: where you are. On a phone it is a sheet, which closes when a link is chosen, the current view too. */
+function AppSidebar({ view, arch }: { view: View; arch: boolean }) {
+	const { setOpenMobile } = useSidebar();
+	const close = () => setOpenMobile(false);
+	const views = VIEWS.filter((v) => arch || v.view === "roadmap");
+	return (
+		<Sidebar variant="inset" collapsible="icon">
+			<SidebarHeader>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<SidebarMenuButton size="lg" tooltip="GitBoard Canvas" onClick={close} render={<a href={viewHref("roadmap")} />}>
+							<span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary font-semibold text-sidebar-primary-foreground">
+								G
+							</span>
+							<span className="font-semibold">GitBoard Canvas</span>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
+			</SidebarHeader>
+			<SidebarContent>
+				<SidebarGroup>
+					<SidebarGroupLabel>Board</SidebarGroupLabel>
+					<SidebarMenu aria-label="Views">
+						{views.map((v) => (
+							<SidebarMenuItem key={v.view}>
+								<SidebarMenuButton
+									isActive={view === v.view}
+									tooltip={v.label}
+									data-view={v.view}
+									aria-current={view === v.view ? "page" : undefined}
+									onClick={close}
+									render={<a href={viewHref(v.view)} />}
+								>
+									<Icon name={v.icon} />
+									<span>{v.label}</span>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+						))}
+					</SidebarMenu>
+				</SidebarGroup>
+			</SidebarContent>
+			<SidebarFooter>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<ThemeButton />
+					</SidebarMenuItem>
+				</SidebarMenu>
+			</SidebarFooter>
+			<SidebarRail />
+		</Sidebar>
+	);
+}
+
 export function Shell({ view, arch, tools, children }: { view: View; arch: boolean; tools: ReactNode; children: ReactNode }) {
 	const [chosen, setChosen] = useState(loadSidebar);
 	const inset = useResizeSignal();
-	const views = VIEWS.filter((v) => arch || v.view === "roadmap");
 	const title = VIEWS.find((v) => v.view === view)?.label;
 	return (
 		<TooltipProvider>
@@ -83,55 +136,13 @@ export function Shell({ view, arch, tools, children }: { view: View; arch: boole
 					saveSidebar(open);
 				}}
 			>
-				<Sidebar variant="inset" collapsible="icon">
-					<SidebarHeader>
-						<SidebarMenu>
-							<SidebarMenuItem>
-								<SidebarMenuButton size="lg" tooltip="GitBoard Canvas" render={<a href={viewHref("roadmap")} />}>
-									<span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary font-semibold text-sidebar-primary-foreground">
-										G
-									</span>
-									<span className="font-semibold">GitBoard Canvas</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-						</SidebarMenu>
-					</SidebarHeader>
-					<SidebarContent>
-						<SidebarGroup>
-							<SidebarGroupLabel>Board</SidebarGroupLabel>
-							<SidebarMenu aria-label="Views">
-								{views.map((v) => (
-									<SidebarMenuItem key={v.view}>
-										<SidebarMenuButton
-											isActive={view === v.view}
-											tooltip={v.label}
-											data-view={v.view}
-											aria-current={view === v.view ? "page" : undefined}
-											render={<a href={viewHref(v.view)} />}
-										>
-											<Icon name={v.icon} />
-											<span>{v.label}</span>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
-								))}
-							</SidebarMenu>
-						</SidebarGroup>
-					</SidebarContent>
-					<SidebarFooter>
-						<SidebarMenu>
-							<SidebarMenuItem>
-								<ThemeButton />
-							</SidebarMenuItem>
-						</SidebarMenu>
-					</SidebarFooter>
-					<SidebarRail />
-				</Sidebar>
+				<AppSidebar view={view} arch={arch} />
 				<SidebarInset ref={inset} className="min-h-0 min-w-0 overflow-hidden">
-					<header className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 md:flex-nowrap">
+					<header className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
 						<SidebarTrigger className="-ml-1 shrink-0" />
 						<Separator orientation="vertical" className="mr-1 data-vertical:h-4 data-vertical:self-center" />
 						<h1 className="text-sm font-medium whitespace-nowrap">{title}</h1>
-						<div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 md:flex-nowrap">{tools}</div>
+						<div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">{tools}</div>
 					</header>
 					{children}
 				</SidebarInset>

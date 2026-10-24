@@ -72,7 +72,6 @@
   .arch .fwcols { column-gap: 64px; }
 }
 
-/* Below md the sidebar is an off-canvas sheet and the top bar wraps, so a view's tools never push the trigger away. */
-@media (max-width: 767px) {
-  [data-slot="sidebar-inset"] .tools { flex-wrap: wrap; }
-}
+/* The top bar wraps on the room it has, not the window width: beside an expanded sidebar at tablet width a view's tools
+   move to a second row instead of running over the trigger and title. */
+[data-slot="sidebar-inset"] .tools { flex-wrap: wrap; }
