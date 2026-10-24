@@ -31,3 +31,4 @@ touches:
 - `npx shadcn add` now imports `cn` (not lib/utils) and adds it to dependencies; move every shadcn dependency to devDependencies (spec R3) and add notices (cva is Apache-2.0).
 - Link routers redraw only on window resize; the shell's ResizeObserver dispatches one when the inset width changes.
 - Demo repo has no architecture data; the fake gcx from tests/cli.test.ts plus app/*/page.tsx folders makes one.
+- Scanning only src/web/components does not keep board class names safe: a shadcn part that uses a utility (the Sidebar's `fixed`) emits it page-wide. The read path's unlinked rows were class `fixed` and became position: fixed; they are `plain` now. tests/dist.test.ts fails on any new clash.
