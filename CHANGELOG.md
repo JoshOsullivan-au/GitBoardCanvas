@@ -4,6 +4,8 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
 ## Unreleased
 
+## 0.2.0 (25/10/2026)
+
 ### Changed
 
 - The board is a dashboard shell. A shadcn sidebar says where you are: Roadmap, with Work in flight and Needs you under it, and Architecture, each with its count; the docs, the theme and the read status sit at its foot. Work in flight and Needs you open a second bar beside the main one, which shrinks to icons, listing each branch with work or what needs you (blocked, gated, checks failing, needs review); picking one opens it on the board and closes the bar, and a branch also opens its feature's details. A slim top bar holds the breadcrumb, the Lifecycle and Help menus and the view's search. Every place is a link (`#/roadmap?stage=2`, `#/roadmap?branch=…`, `#/architecture`), so back, forward and reload work. Picking Roadmap or Architecture folds the sidebar to icons and opens the view. Reached another way, the sidebar opens expanded on the Roadmap and folded on Architecture, then remembers each view's toggle; ⌘B or Ctrl+B toggles it. The view tabs in the header are gone, and the map's link corridors are 64px beside the sidebar. Once a board scrolls, its sticky column headers turn more opaque so cards passing under them do not show through.
