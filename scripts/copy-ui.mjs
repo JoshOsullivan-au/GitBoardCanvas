@@ -15,8 +15,8 @@ html = html.replace(
 	(_, ref) => `<script type="module">${asset(ref).replace(/<\/script/gi, "<\\/script")}</script>`,
 );
 if (/(?:src|href)="\.\//.test(html)) throw new Error("copy-ui: the page still links a built file");
-// The server fills the first __ICONS__, __ARCHITECTURE__ and __REPO__ it finds; the bundle must not hold any of them.
-for (const token of ["__ICONS__", "__ARCHITECTURE__", "__REPO__"]) {
+// The server fills the first __ICONS__, __ARCHITECTURE__, __REPO__ and __ROOT__ it finds; the bundle must not hold any of them.
+for (const token of ["__ICONS__", "__ARCHITECTURE__", "__REPO__", "__ROOT__"]) {
 	if (html.split(token).length !== 2) throw new Error(`copy-ui: ${token} must appear once in the page`);
 }
 

@@ -73,6 +73,7 @@ describe("board server", () => {
 		expect(res.body).not.toContain("__ICONS__");
 		expect(res.body).toContain("GitBoard Canvas");
 		expect(res.body).toContain(`const REPO = ${JSON.stringify(path.basename(dir))};`);
+		expect(res.body).toContain(`const ROOT = ${JSON.stringify(path.resolve(dir))};`);
 	});
 
 	it("serves the board", async () => {

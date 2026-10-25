@@ -2,6 +2,7 @@
 // A feature's details panel, and its phase files rendered in place: roadmap links open in place, Back returns.
 import { type CSSProperties, Fragment, useRef } from "react";
 
+import { CopyPath } from "../components/shell/CopyPath";
 import { ddmm, plural } from "../lib/format";
 import { GIT_STEPS, prStates } from "../lib/git";
 import { Icon } from "../lib/icon";
@@ -12,6 +13,12 @@ export type Crumb = { path: string; label: string; phaseIndex: number | null };
 export type DetailsView = { id: string } & ({ kind: "card" } | ({ kind: "doc"; trail: Crumb[]; html: string } & Crumb));
 
 const VIA = { roadmap: "roadmap files", branch: "branch name", code: "code it names" };
+
+/** The feature's folder, repo-relative; a feature that is only a build list is its `<slug>.md`. */
+const featurePath = (m: Model, c: Feature) => {
+	const dir = `${m.roadmapDir}/${m.stages.find((s) => s.id === c.stage)?.folder ?? ""}/${c.slug}`;
+	return c.hasFolder ? dir : `${dir}.md`;
+};
 
 type Open = { details: (id: string) => void; doc: (id: string, path: string, label: string, phaseIndex: number | null, trail?: Crumb[]) => void };
 
@@ -208,6 +215,7 @@ function Doc({ m, c, view, open, close }: { m: Model; c: Feature; view: Extract<
 			<button type="button" className="x" aria-label="Close" onClick={close}>
 				<Icon name="X" />
 			</button>
+			<CopyPath path={view.path} />
 			<div className="doc-head">
 				<button
 					type="button"
@@ -240,6 +248,7 @@ export function Details({ m, byId, view, open, close }: { m: Model; byId: Map<st
 			<button type="button" className="x" aria-label="Close" onClick={close}>
 				<Icon name="X" />
 			</button>
+			<CopyPath path={featurePath(m, c)} />
 			<div className="d-head">
 				<h2 id="d-title">{c.title}</h2>
 				<span className="pill" title={stageName(m, c.stage)} style={{ "--gs": stageTone(m, c.stage) } as CSSProperties}>

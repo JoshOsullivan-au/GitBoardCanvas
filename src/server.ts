@@ -90,15 +90,18 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 	const log = opts.log ?? ((line: string) => console.error(`gitboard: ${line}`));
 	const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
 	const lifecycle = path.join(root, config.roadmapDir);
-	/* The sidebar header names the repo by its folder; JSON with "<" escaped, so it cannot close the script. */
+	/* The sidebar header names the repo by its folder, and Copy path needs its absolute path; JSON with "<" escaped, so
+	   neither can close the script. */
 	const repo = JSON.stringify(path.basename(path.resolve(root))).replace(/</g, "\\u003c");
+	const rootPath = JSON.stringify(path.resolve(root)).replace(/</g, "\\u003c");
 	const icons = JSON.stringify(JSON.parse(fs.readFileSync(path.join(UI, "icons.json"), "utf8"))).replace(/</g, "\\u003c");
 	const page = () =>
 		fs
 			.readFileSync(path.join(UI, "board.html"), "utf8")
 			.replace("__ICONS__", () => icons)
 			.replace("__ARCHITECTURE__", String(config.architecture !== null))
-			.replace("__REPO__", () => repo);
+			.replace("__REPO__", () => repo)
+			.replace("__ROOT__", () => rootPath);
 	const markdown = new Marked({ gfm: true, renderer: { html: ({ text }) => escapeHtml(text) } });
 
 	// Git pipeline across every worktree: slow on big repos, so it refreshes in the background and after a move,
