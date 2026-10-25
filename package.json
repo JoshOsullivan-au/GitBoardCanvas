@@ -28,12 +28,14 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && vite build --logLevel warn && node scripts/copy-ui.mjs",
+    "build": "tsc -p tsconfig.build.json && vite build --logLevel warn && node scripts/copy-ui.mjs && node scripts/stamp-build.mjs",
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json",
     "test": "vitest run",
     "dev": "npm run build && node dist/cli.js serve",
-    "check": "npm run typecheck && npm run build && npm test"
+    "check": "npm run typecheck && npm run build && npm test",
+    "preversion": "npm run check",
+    "version": "node scripts/changelog.mjs release && git add CHANGELOG.md"
   },
   "dependencies": {
     "marked": "^18.1.0"
