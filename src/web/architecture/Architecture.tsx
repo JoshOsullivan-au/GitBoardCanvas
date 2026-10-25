@@ -360,7 +360,7 @@ function Timeline({ rows, total, budgetMs, widths, setWidth }: { rows: Row[]; to
 									{inner}
 								</button>
 							) : (
-								<div className={`phase ${r.cls ?? ""} fixed`}>{inner}</div>
+								<div className={`phase ${r.cls ?? ""} plain`}>{inner}</div>
 							)}
 						</li>
 					);

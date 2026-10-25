@@ -11,6 +11,7 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 ### Fixed
 
 - Link lines no longer run over a stage header or along a column's frame. A line crosses a column only through a gap between two of its cards or group rows; a column with no such gap, such as one with every group collapsed or no cards, is passed in a lane just above or below the columns.
+- In an Architecture read path, the Proxy row no longer draws on top of the Server request row. The shell's sidebar made Tailwind emit its `fixed` utility, which turned the rows marked `fixed` into `position: fixed`; they are marked `plain` now, and a build test fails when a board class name is also a Tailwind utility.
 
 ## 0.2.0 (25/10/2026)
 

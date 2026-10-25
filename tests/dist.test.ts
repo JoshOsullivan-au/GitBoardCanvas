@@ -28,3 +28,43 @@ describe("built CLI", () => {
 		);
 	});
 });
+
+/** Class names in Tailwind's utilities layer of the built page. */
+function utilities(html: string): Set<string> {
+	const css = [...html.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
+	const start = css.indexOf("@layer utilities{");
+	let depth = 0;
+	let end = start;
+	for (let i = start; i < css.length; i++) {
+		if (css[i] === "{") depth++;
+		else if (css[i] === "}" && --depth === 0) {
+			end = i;
+			break;
+		}
+	}
+	return new Set([...css.slice(start, end).matchAll(/\.((?:\\.|[\w-])+)/g)].map((m) => m[1].replace(/\\(.)/g, "$1")));
+}
+
+describe("built page", () => {
+	// The board's class names live outside Tailwind's scan, but a shadcn part can still make one a utility: the
+	// Sidebar's `fixed` once gave the read path's unlinked rows position: fixed.
+	it("has no board class name that Tailwind also makes a utility", () => {
+		const html = fs.readFileSync(path.join(repo, "dist", "ui", "board.html"), "utf8");
+		const tw = utilities(html);
+		expect(tw.size, "no utilities layer found").toBeGreaterThan(50);
+		const web = path.join(repo, "src", "web");
+		const board = new Set<string>();
+		for (const m of fs.readFileSync(path.join(web, "styles", "board.css"), "utf8").matchAll(/\.([A-Za-z_][\w-]*)/g)) board.add(m[1]);
+		const files = (dir: string): string[] =>
+			fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+				const p = path.join(dir, e.name);
+				return e.isDirectory() ? (e.name === "components" ? [] : files(p)) : /\.tsx?$/.test(e.name) ? [p] : [];
+			});
+		for (const f of files(web))
+			for (const m of fs.readFileSync(f, "utf8").matchAll(/className=(?:"([^"]+)"|\{`([^`]+)`\})/g))
+				for (const c of (m[1] ?? m[2]).replace(/\$\{[^}]*\}/g, " ").split(/\s+/)) if (c) board.add(c);
+		// Shared on purpose: sr-only means the same in both, and dark is the theme class Tailwind's dark variant reads.
+		const shared = new Set(["sr-only", "dark"]);
+		expect([...board].filter((c) => !shared.has(c) && tw.has(c))).toEqual([]);
+	});
+});
