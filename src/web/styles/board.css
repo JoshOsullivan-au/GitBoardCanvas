@@ -418,7 +418,8 @@ dialog.doc-mode { width: min(48rem, calc(100vw - 32px)); }
 .md a:hover { text-decoration-color: currentColor; }
 
 /* Toast */
-.toasts { position: fixed; right: 24px; bottom: 24px; z-index: 60; display: flex; flex-direction: column; gap: 8px; }
+/* A popover in the top layer, so it shows over a modal dialog; the overrides undo the browser's popover box. */
+.toasts { position: fixed; inset: auto 24px 24px auto; margin: 0; padding: 0; border: 0; background: none; overflow: visible; color: var(--foreground); display: flex; flex-direction: column; gap: 8px; }
 .toast {
   display: flex; align-items: center; gap: 12px; min-width: 320px; padding: 12px 14px; border-radius: var(--radius-lg);
   background: var(--popover); border: 1px solid var(--border); box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);

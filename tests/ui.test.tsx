@@ -356,4 +356,11 @@ describe("copy path", () => {
 		// A modal menu's backdrop takes the release of the opening click, and the dialog closes.
 		expect(read("components/shell/CopyPath.tsx")).toContain("<DropdownMenu modal={false}>");
 	});
+
+	it("shows its toast over the popup: a top-layer popover inside the open dialog, as outside it the page is inert", () => {
+		const ui = read("lib/ui.tsx");
+		expect(ui).toContain('popover="manual"');
+		expect(ui).toContain("host ?? document.body");
+		expect(ui).toContain('"dialog:modal"');
+	});
 });
