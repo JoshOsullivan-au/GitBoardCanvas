@@ -36,8 +36,8 @@ Research on a real host app (an app router with about 110 pages and 1,700 source
 | Planned | cards in the chosen stages name pages or calls | Live + planned marks | none |
 
 - A state with nothing in it is not listed. A worktree with no dirty files and no commits ahead has no state.
-- The Live commit is the latest successful Production deployment from `gh api repos/{repo}/deployments?environment=Production`, read with the pull requests. `gitboard measure` also records it as `commit` beside `deployment`. With no deployment record, Main is diffed against the commit the measure names, and with neither, Main is hidden.
-- Each state is a set of blob SHAs (a tree, an index, or files hashed from disk). One cache keyed by blob SHA holds each file's imports and endpoints, so every state shares the work.
+- The Live commit is the newest Production deployment whose latest status is `success`. The board lists the 10 newest deployments (`gh api repos/{repo}/deployments?environment=Production&per_page=10`, read with the pull requests), then reads each one's statuses newest first (`gh api repos/{repo}/deployments/{id}/statuses?per_page=1`) until one is `success`. A deployment with no status, or whose latest status is anything else (`failure`, `error`, `inactive`, `pending`, `queued`, `in_progress`), is skipped. `gitboard measure` also records the commit as `commit` beside `deployment`. When no deployment qualifies or the status read fails, Main is diffed against the commit the measure names; with neither, Main is hidden with the reason "Live commit Missing".
+- Each state is a snapshot of paths to blob SHAs: a commit's tree, an index, or files hashed from disk. A cache keyed by blob SHA holds only what does not depend on a file's path: its import specifiers as written and the endpoints its text names. Import resolution, page routes and closures depend on paths, so they are worked out per snapshot, keyed by the tree SHA for a commit and by a hash of the sorted path-to-blob list for an index or working tree. A rename therefore never reuses a stale closure.
 
 ### Compare to
 
@@ -91,7 +91,7 @@ Patterns taken from Figma's branch review and Datadog's deployment comparison, r
 ### Reads
 
 - `GET /api/architecture/states`: the listed states, each with its id, kind, label, branch, pull request, default base and counts by mark kind. Built on the existing pipeline cache, so it adds no git call on its own. Earlier measures of the data file are listed as Live states with their measured date.
-- `GET /api/architecture/compare?source=<id>&base=<id>`: one comparison. Returns `{ source, base, measured, shared: { files, calls: { added, dropped } }, pages: [{ route, kind, reasons, callsAdded, callsDropped, files, timing? }], targets: [{ endpoint, set, pages }], counts }`. `base` defaults to the source's own base. Cached by the pair of blob sets; a tick recomputes only what changed.
+- `GET /api/architecture/compare?source=<id>&base=<id>`: one comparison. Returns `{ source, base, measured, shared: { files, calls: { added, dropped } }, pages: [{ route, kind, reasons, callsAdded, callsDropped, files, timing? }], targets: [{ endpoint, set, pages }], counts }`. `base` defaults to the source's own base. Cached by the pair of snapshot keys (tree SHAs, or path-to-blob hashes for an index or working tree), so a rename or move gives a new key; a tick recomputes only what changed.
 
 ## Order and rules
 
