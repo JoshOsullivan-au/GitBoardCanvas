@@ -12,6 +12,7 @@ import { secondOf } from "../src/web/components/shell/AppSidebar";
 import { hashOf, parseHash, placeKey } from "../src/web/lib/hash";
 import { resolveRel } from "../src/web/lib/markdown";
 import { NEED_FILTER, navOf, placeFilters } from "../src/web/lib/nav";
+import { pathForms } from "../src/web/lib/paths";
 import { Card } from "../src/web/roadmap/Card";
 import { buildModel, emptyFilters, filterOptions } from "../src/web/roadmap/model";
 import type { Board, Card as CardData } from "../src/types.js";
@@ -333,5 +334,36 @@ describe("shell", () => {
 		expect(resolveRel("docs/spec.md", "../CHANGELOG.md")).toBe("CHANGELOG.md");
 		expect(resolveRel("roadmap/README.md", "./1.ideas/")).toBe("roadmap/1.ideas/README.md");
 		expect(resolveRel("roadmap/3.open/a.md", "b.md#top")).toBe("roadmap/3.open/b.md");
+	});
+});
+
+describe("copy path", () => {
+	it("offers the absolute path, the repo-relative path and the name", () => {
+		expect(pathForms("/Users/me/repo", "roadmap/3.open/a/phases/01-x.md")).toEqual({
+			absolute: "/Users/me/repo/roadmap/3.open/a/phases/01-x.md",
+			relative: "roadmap/3.open/a/phases/01-x.md",
+			filename: "01-x.md",
+		});
+		expect(pathForms("/Users/me/repo/", "./roadmap/3.open/a/")).toMatchObject({ absolute: "/Users/me/repo/roadmap/3.open/a", filename: "a" });
+		expect(pathForms("C:\\work\\repo", "docs/a.md").absolute).toBe("C:\\work\\repo\\docs\\a.md");
+		expect(pathForms("", "README.md")).toEqual({ absolute: "", relative: "README.md", filename: "README.md" });
+	});
+
+	it("sits beside Close in every popup, its menu portalled into the dialog", () => {
+		for (const f of ["roadmap/Details.tsx", "components/shell/DocDialog.tsx"]) expect(read(f)).toMatch(/<\/button>\s*<CopyPath path=\{/);
+		expect(read("roadmap/Details.tsx").match(/<CopyPath /g)).toHaveLength(2);
+		expect(read("components/shell/CopyPath.tsx")).toContain("container={box}");
+		// A modal menu's backdrop takes the release of the opening click, and the dialog closes.
+		expect(read("components/shell/CopyPath.tsx")).toContain("<DropdownMenu modal={false}>");
+	});
+
+	it("shows its toast over the popup: a top-layer popover inside the open dialog, as outside it the page is inert", () => {
+		const ui = read("lib/ui.tsx");
+		expect(ui).toContain('popover="manual"');
+		expect(ui).toContain("host ?? document.body");
+		expect(ui).toContain('"dialog:modal"');
+		// A toast already showing moves in when a dialog opens, and to the dialog still open when its host closes.
+		expect(ui).toMatch(/d\.showModal\(\);\s*rehost\?\.\(\);/);
+		expect(ui).toContain("const off = () => setHost(openModal());");
 	});
 });

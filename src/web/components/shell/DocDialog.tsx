@@ -10,6 +10,7 @@ import { Markdown } from "@/lib/markdown";
 import { Modal, type ModalHandle, usePage } from "@/lib/ui";
 
 import type { Doc } from "./AppSidebar";
+import { CopyPath } from "./CopyPath";
 
 type Shown = Doc & { html: string };
 
@@ -62,6 +63,7 @@ export function useDocDialog(roadmapDir: string | null, docs: Doc[]) {
 					<button type="button" className="x" aria-label="Close" ref={close} data-autofocus={trail.length > 1 ? undefined : ""} onClick={() => modal.current?.close()}>
 						<Icon name="X" />
 					</button>
+					<CopyPath path={view.path} />
 					<div className="doc-head">
 						{trail.length > 1 ? (
 							<button
