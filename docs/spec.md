@@ -140,7 +140,7 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 - R16. A card shows title, group, progress, phase count, created date (DD/MM/YYYY), blocked, gated and linked counts, and its furthest git pipeline step with work. The last landed date and commit show in the details panel.
 - R17. Drag a card to another column, or focus it and use the keyboard (arrow keys pick a column, Enter confirms, Escape cancels). A confirm dialog states every step the move will take (worktree, `git mv`, link rewrites with a count, hooks, lint gate, commit subject, fast-forward) before anything runs. Undo moves it back the same way.
 - R18. A details panel shows relations, the git track per branch, the phase list with progress, and a markdown preview of the build list or any phase.
-- R19. Hovering or focusing a card traces its dependency lines to related cards; lines route around cards, and shared segments draw once.
+- R19. Hovering or focusing a card traces its dependency lines to related cards; lines route around cards, and shared segments draw once. A dependency where one side still blocks the other draws as a red dotted line with an arrowhead, on top of the others.
 - R20. Filter by group, relation (blocked, gated, linked), git step and text; order by stage order, progress, last landed, created or title.
 - R21. Light and dark themes from the system setting. System fonts; no web font or external request.
 - R22. Live: moves made in a terminal, an editor or another worktree appear within about two seconds of landing.

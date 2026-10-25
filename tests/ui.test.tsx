@@ -166,6 +166,17 @@ describe("architecture tab", () => {
 		expect(app.match(/onScroll=\{markScrolled\}/g)).toHaveLength(2);
 	});
 
+	it("draws a link that still blocks as red dots, on top, and keeps the map's calls as they were", () => {
+		expect(css).toContain(".fwlinks .stop path { stroke: var(--stop); stroke-width: 2; stroke-dasharray: 0 5; }");
+		expect(css).toContain("--stop: oklch(0.79 0.192 19.6);");
+		expect(css).toContain("--stop: oklch(0.71 0.164 18.3);");
+		expect(read("lib/routes.ts")).toContain('const KINDS = ["lnk", "dep", "blk", "stop"] as const;');
+		const roadmap = read("roadmap/Roadmap.tsx");
+		expect(roadmap.match(/\? "stop" : "dep"/g)).toHaveLength(2);
+		expect(roadmap).not.toContain('"blk"');
+		expect(read("architecture/Architecture.tsx")).toContain('cls: shell ? "lnk" : "blk"');
+	});
+
 	it("keeps the approved fixed columns", () => {
 		expect(css).toContain(".arch .fwcols { grid-template-columns: 216px 292px 292px 292px; column-gap: 88px;");
 	});

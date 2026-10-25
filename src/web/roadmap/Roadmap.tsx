@@ -303,11 +303,11 @@ function RoadmapView({
 			const done = (id: string) => isDone(model, ids.get(id)!);
 			for (const d of t.deps) {
 				seen.add(d);
-				links.push({ from: end(d), to: end(t.id), cls: !done(d) && !done(t.id) ? "blk" : "dep", arrow: true });
+				links.push({ from: end(d), to: end(t.id), cls: !done(d) && !done(t.id) ? "stop" : "dep", arrow: true });
 			}
 			for (const d of t.dependents) {
 				seen.add(d);
-				links.push({ from: end(t.id), to: end(d), cls: !done(t.id) && !done(d) ? "blk" : "dep", arrow: true });
+				links.push({ from: end(t.id), to: end(d), cls: !done(t.id) && !done(d) ? "stop" : "dep", arrow: true });
 			}
 			for (const l of new Set([...t.links, ...t.backlinks])) if (!seen.has(l)) links.push({ from: end(t.id), to: end(l), cls: "lnk", arrow: false });
 		}

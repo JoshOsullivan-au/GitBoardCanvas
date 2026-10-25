@@ -13,6 +13,7 @@
   --muted-foreground: oklch(0.52 0 0);
   --accent: oklch(0.97 0 0);
   --destructive: oklch(0.505 0.213 27.518);
+  --stop: oklch(0.79 0.192 19.6);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -55,6 +56,7 @@
   --muted-foreground: oklch(0.708 0 0);
   --accent: oklch(0.269 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  --stop: oklch(0.71 0.164 18.3);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
@@ -250,7 +252,11 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 .fwlinks .lnk path { stroke: var(--link); stroke-dasharray: 0 4; }
 .fwlinks .dep path { stroke: color-mix(in oklch, var(--arrow) 55%, transparent); }
 .fwlinks .blk path { stroke: var(--arrow); stroke-width: 2; }
+/* Blocked: one side still waits on the other. Red dots in --stop (locked by Josh, 25/10/2026), so a blocked chain
+   reads at a glance. */
+.fwlinks .stop path { stroke: var(--stop); stroke-width: 2; stroke-dasharray: 0 5; }
 .fwlinks .a { stroke-width: 1.5; }
+.fwlinks .stop .a { stroke-dasharray: none; }
 .meter { flex: none; width: 56px; height: 4px; border-radius: 999px; background: color-mix(in oklch, var(--fg-a) 10%, transparent); overflow: hidden; }
 .meter > i { display: block; height: 100%; background: var(--foreground); border-radius: inherit; }
 @media (prefers-reduced-motion: reduce) { .card, .card::before, .card::after, .gb, .gh .car { transition: none; } .card:hover { transform: none; } }

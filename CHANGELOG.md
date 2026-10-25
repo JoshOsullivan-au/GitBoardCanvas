@@ -12,6 +12,8 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
 ### Added
 
+- Hovering or focusing a card draws each dependency that still blocks as a red dotted line with an arrowhead, to or from the blocked features, above the other links. Dependencies that no longer block keep their soft blue line.
+
 - `GET /api/docs` lists the docs the sidebar offers: the lifecycle folder's README and, when the repo has them, `docs/spec.md`, `docs/configuration.md`, `docs/adr/README.md` and `CHANGELOG.md`. `GET /api/doc` opens those paths too, and still no other file outside the lifecycle folder.
 - Icons `ArrowSquareOut`, `DotsThree`, `FileText`, `Kanban`, `Sidebar` and `TreeStructure`.
 

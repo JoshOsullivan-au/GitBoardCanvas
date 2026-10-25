@@ -4,7 +4,9 @@
 
 /** A link end: a card element and its column index. */
 export type End = { el: Element | null | undefined; col: number };
-export type Link = { from: End; to: End; cls: "lnk" | "dep" | "blk"; arrow: boolean };
+/** lnk: a mention; dep: a dependency that no longer blocks; blk: a solid call (the map); stop: one side still blocks the
+ * other (red dots, drawn on top). */
+export type Link = { from: End; to: End; cls: "lnk" | "dep" | "blk" | "stop"; arrow: boolean };
 
 type Box = { x: number; y: number; w: number; h: number; col: number };
 
@@ -87,7 +89,7 @@ export function drawRoutes(cols: Element | null | undefined, links: Link[]): voi
 	// Each line is cut into straight runs and rounded corners; runs on the same line of the same kind merge, and a
 	// corner shared by several lines is drawn once, so a shared path is one stroke.
 	const R = 6;
-	const KINDS = ["lnk", "dep", "blk"] as const;
+	const KINDS = ["lnk", "dep", "blk", "stop"] as const;
 	const kinds = Object.fromEntries(
 		KINDS.map((cls) => [cls, { runs: new Map<string, [number, number][]>(), corners: new Set<string>(), heads: new Set<string>() }]),
 	) as Record<Link["cls"], { runs: Map<string, [number, number][]>; corners: Set<string>; heads: Set<string> }>;
