@@ -32,6 +32,10 @@ describe("build info", () => {
 		expect(versionLine(info)).toBe("1.2.3 (6681e5a+changes, built 25/10/2026)");
 	});
 
+	it("shows the version that was built, not a newer checkout's", () => {
+		expect(buildInfo(pkg({ version: "1.0.0", commit: "6681e5a0123456789" })).version).toBe("1.0.0");
+	});
+
 	it("warns only when a checkout's HEAD moved past the build", () => {
 		const dir = pkg(null);
 		git(dir, "init", "-q");

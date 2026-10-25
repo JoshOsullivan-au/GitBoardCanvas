@@ -8,12 +8,12 @@ import { git } from "./git.js";
 
 export type BuildInfo = { version: string; commit: string | null; dirty: boolean; builtAt: string | null };
 
-/** Reads dist/build.json under `pkgRoot`, falling back to package.json's version when the stamp is missing. */
+/** Reads dist/build.json under `pkgRoot`: the version that was built, falling back to package.json's without a stamp. */
 export function buildInfo(pkgRoot: string): BuildInfo {
 	const { version } = JSON.parse(fs.readFileSync(path.join(pkgRoot, "package.json"), "utf8")) as { version: string };
 	try {
 		const stamp = JSON.parse(fs.readFileSync(path.join(pkgRoot, "dist", "build.json"), "utf8")) as Partial<BuildInfo>;
-		return { version, commit: stamp.commit ?? null, dirty: stamp.dirty === true, builtAt: stamp.builtAt ?? null };
+		return { version: stamp.version ?? version, commit: stamp.commit ?? null, dirty: stamp.dirty === true, builtAt: stamp.builtAt ?? null };
 	} catch {
 		return { version, commit: null, dirty: false, builtAt: null };
 	}

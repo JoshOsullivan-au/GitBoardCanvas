@@ -11,7 +11,8 @@ let commit = null;
 let dirty = false;
 try {
 	commit = git(["rev-parse", "HEAD"]);
-	dirty = git(["status", "--porcelain", "--untracked-files=no", "--", "src", "scripts", "package.json"]) !== "";
+	// Any tracked change or untracked file outside .gitignore: a new source file or a config edit changes the output.
+	dirty = git(["status", "--porcelain", "--untracked-files=normal"]) !== "";
 } catch {
 	// Not a git checkout (a packed tarball): the version alone names the build.
 }

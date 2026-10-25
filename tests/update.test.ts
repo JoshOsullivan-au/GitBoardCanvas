@@ -12,7 +12,7 @@ import { buildInfo } from "../src/build-info.js";
 import { update } from "../src/update.js";
 
 const sh = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-const STAMP = `const {execFileSync}=require("node:child_process"),fs=require("node:fs");fs.mkdirSync("dist",{recursive:true});fs.writeFileSync("dist/build.json",JSON.stringify({commit:execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim()}))`;
+const STAMP = `const {execFileSync}=require("node:child_process"),fs=require("node:fs");fs.mkdirSync("dist",{recursive:true});fs.writeFileSync("dist/build.json",JSON.stringify({version:require("./package.json").version,commit:execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim()}))`;
 
 let tmp: string;
 let clone: string;
