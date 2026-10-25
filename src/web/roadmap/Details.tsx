@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // A feature's details panel, and its phase files rendered in place: roadmap links open in place, Back returns.
-import { Fragment, useRef } from "react";
+import { type CSSProperties, Fragment, useRef } from "react";
 
 import { ddmm, plural } from "../lib/format";
 import { GIT_STEPS, prStates } from "../lib/git";
 import { Icon } from "../lib/icon";
 import { Markdown } from "../lib/markdown";
-import { cardState, type Feature, groupIcon, isDone, type Model, stageName } from "./model";
+import { cardState, type Feature, groupIcon, isDone, type Model, stageName, stageTone } from "./model";
 
 export type Crumb = { path: string; label: string; phaseIndex: number | null };
 export type DetailsView = { id: string } & ({ kind: "card" } | ({ kind: "doc"; trail: Crumb[]; html: string } & Crumb));
@@ -240,9 +240,14 @@ export function Details({ m, byId, view, open, close }: { m: Model; byId: Map<st
 			<button type="button" className="x" aria-label="Close" onClick={close}>
 				<Icon name="X" />
 			</button>
-			<h2 id="d-title">{c.title}</h2>
-			<div className="sub">
-				{stageName(m, c.stage)} · {c.group}
+			<div className="d-head">
+				<h2 id="d-title">{c.title}</h2>
+				<span className="pill" title={stageName(m, c.stage)} style={{ "--gs": stageTone(m, c.stage) } as CSSProperties}>
+					{stageName(m, c.stage)}
+				</span>
+				<span className="pill" title={c.group}>
+					{c.group}
+				</span>
 			</div>
 			{c.total ? (
 				<div className="figure-row">

@@ -4,6 +4,14 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
 ## Unreleased
 
+### Changed
+
+- A feature's details show its stage and group as pills beside the title. The stage pill takes its colour from the stage's place on the board: the first stage grey, the last green, and the stages between purple, blue and amber towards done, so the default lifecycle reads Ideas grey, Planning purple, Open blue, In progress amber, Complete green.
+
+### Fixed
+
+- Link lines no longer run over a stage header or along a column's frame. A line crosses a column only through a gap between two of its cards or group rows; a column with no such gap, such as one with every group collapsed or no cards, is passed in a lane just above or below the columns.
+
 ## 0.2.0 (25/10/2026)
 
 ### Changed

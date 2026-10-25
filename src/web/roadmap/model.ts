@@ -78,6 +78,19 @@ export const isBlocked = (c: Feature) => c.blockedBy.length > 0;
 export const stageName = (m: Model, id: number) => m.stages.find((s) => s.id === id)?.name ?? String(id);
 export const groupIcon = (m: Model, g: string) => (hasIcon(m.groupIcons[g]) ? m.groupIcons[g] : GROUP_ICON);
 
+/* A stage's colour by its place on the board, since stages are configurable: the first reads idle, the last done, and
+   the ones between run purple, blue, amber towards it. Fewer than three between take the ones nearest done. */
+const STAGE_MID = ["var(--st-pr)", "var(--st-commit)", "var(--tone-att)"];
+export function stageTone(m: Model, id: number): string {
+	const i = m.stages.findIndex((s) => s.id === id);
+	const last = m.stages.length - 1;
+	if (i <= 0) return "var(--muted-foreground)";
+	if (i === last) return "var(--tone-good)";
+	const k = last - 1;
+	const j = i - 1;
+	return STAGE_MID[k <= STAGE_MID.length ? STAGE_MID.length - k + j : Math.floor((j * STAGE_MID.length) / k)];
+}
+
 export type CardState = { cls: "done" | "lock" | "wait" | ""; word: string; mark: string | null };
 
 export function cardState(m: Model, c: Feature): CardState {
