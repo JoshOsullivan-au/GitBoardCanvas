@@ -12,6 +12,10 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
 ### Added
 
+- `gitboard --version` names the build: `0.2.0 (6681e5a, built 25/10/2026)` when built from a git checkout. `gitboard serve` prints the same at start. Run from a linked clone that was pulled or switched without `npm run build`, both warn that the build is behind the checkout.
+- `gitboard update [--check]` updates the install it runs from. A global npm install moves to the latest published version. A linked clone fast-forwards to its upstream, runs `npm ci` when the lockfile changed, rebuilds and lists the new commits, and refuses uncommitted or conflicted changes or local commits. A copy inside a project prints the `npm install -D` command, so the project's lockfile stays the one place its version changes.
+- Releases: `npm version <patch|minor|major>` runs the checks, files Unreleased under the new version and tags it; pushing the tag publishes to npmjs.com with provenance and opens a GitHub release from that changelog section.
+
 - Hovering or focusing a card draws each dependency that still blocks as a red dotted line with an arrowhead, to or from the blocked features, above the other links. Dependencies that no longer block keep their soft blue line.
 
 - `GET /api/docs` lists the docs the sidebar offers: the lifecycle folder's README and, when the repo has them, `docs/spec.md`, `docs/configuration.md`, `docs/adr/README.md` and `CHANGELOG.md`. `GET /api/doc` opens those paths too, and still no other file outside the lifecycle folder.

@@ -42,6 +42,14 @@ npm install -D gitboard-canvas
 
 With `npx`, every command and flag in this README works after `npx gitboard-canvas`, for example `npx gitboard-canvas --version`.
 
+### Updating and pinning
+
+`gitboard --version` prints the version and, for a build made from a git checkout, the commit and build date, for example `0.2.0 (6681e5a, built 25/10/2026)`. Each release's changes are in the [changelog](CHANGELOG.md).
+
+- **A project's board:** pin it with `npm install -D gitboard-canvas@<version>` and start it with `npx gitboard`. The version sits in the project's lockfile, so an update arrives as a reviewed change to `package.json`, and rolling back is reinstalling the previous version.
+- **A global install or a linked clone:** run `gitboard update`. A global install moves to the latest published version. A linked clone (`npm link` in a clone of this repository) fast-forwards its branch to its upstream, reinstalls when the lockfile changed, rebuilds and lists the new commits; it refuses uncommitted or conflicted changes and local commits, and never stashes or resets. `gitboard update --check` only reports what is new.
+- Pulled a linked clone yourself? Until `npm run build` runs there, `gitboard --version` and `gitboard serve` warn that the build is behind the checkout, and `gitboard update` rebuilds it.
+
 To try it on sample data first, clone the repository, build a demo repository and open its board:
 
 ```sh
@@ -138,7 +146,8 @@ GitBoard Canvas never pushes, force-updates, stashes or resets, and never touche
 | `gitboard list [--json]` | Prints every feature by stage. | 0 |
 | `gitboard init` | Creates the lifecycle folder, templates and config. | 0 |
 | `gitboard measure --from <iso> [--to <iso>]` | Reads the live pages from Grafana Tempo and writes the Architecture tab's data. Needs an `architecture` block and `gcx`. | 0 written, 1 refused |
-| `gitboard --version`, `gitboard --help` | Prints the version or usage. | 0 |
+| `gitboard update [--check]` | Updates this install: a global npm install to the latest version, a linked clone by fast-forward and rebuild. A project's own copy prints the `npm install -D` command to run. `--check` only reports. | 0 up to date or updated, 1 refused |
+| `gitboard --version`, `gitboard --help` | Prints the version (with the build's commit when built from a checkout) or usage. | 0 |
 
 ## For coding agents
 
@@ -169,7 +178,7 @@ Add an `architecture` block and the board gets a second view beside the Roadmap,
 
 ## Security
 
-The board listens on `127.0.0.1` and `::1` only. It checks the Host header on every request and the Origin header on every write. It makes no network calls except `gh` for pull requests. `gitboard measure`, which you run yourself, also calls `gcx` and, when `architecture.site` is set, sends a `HEAD` request to that site. Hook and lint commands come from your own config and run on your machine. See [SECURITY.md](SECURITY.md).
+The board listens on `127.0.0.1` and `::1` only. It checks the Host header on every request and the Origin header on every write. It makes no network calls except `gh` for pull requests. `gitboard measure`, which you run yourself, also calls `gcx` and, when `architecture.site` is set, sends a `HEAD` request to that site. `gitboard update`, also run by you, calls `git fetch` or the npm registry. Hook and lint commands come from your own config and run on your machine. See [SECURITY.md](SECURITY.md).
 
 ## Documentation
 

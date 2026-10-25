@@ -8,12 +8,14 @@ import { fileURLToPath } from "node:url";
 
 import { checkTarget, measure, writeMap } from "./architecture/measure.js";
 import { loadBoard } from "./board.js";
+import { buildInfo, staleBuild, versionLine } from "./build-info.js";
 import { type GitBoardConfig, loadConfig, stagesOf } from "./config.js";
 import { mainCheckout, repoRoot } from "./git.js";
 import { init } from "./init.js";
 import { runLint } from "./lint.js";
 import { moveFeature, planMove } from "./move.js";
 import { listen } from "./server.js";
+import { update } from "./update.js";
 
 const HELP = `GitBoard Canvas: a local kanban for a folder-based product lifecycle
 
@@ -26,12 +28,18 @@ Usage:
   gitboard init                          create the lifecycle folder, templates and config
   gitboard measure --from <iso> [--to <iso>]
                                          read the live routes from Tempo for the Architecture tab
+  gitboard update [--check]              update this install: pull and rebuild a linked clone, or the global package
   gitboard --version | --help
 `;
 
+const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+
+/** The running build, and a warning on stderr when a linked checkout was pulled without a rebuild. */
 function version(): string {
-	const pkg = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "package.json");
-	return (JSON.parse(fs.readFileSync(pkg, "utf8")) as { version: string }).version;
+	const info = buildInfo(PKG_ROOT);
+	const stale = staleBuild(PKG_ROOT, info);
+	if (stale) process.stderr.write(`gitboard: ${stale}\n`);
+	return versionLine(info);
 }
 
 function flag(args: string[], name: string): string | undefined {
@@ -63,6 +71,9 @@ async function main(argv: string[]): Promise<number> {
 	if (first === "--version" || first === "-v") {
 		process.stdout.write(`${version()}\n`);
 		return 0;
+	}
+	if (first === "update") {
+		return update(PKG_ROOT, { check: rest.includes("--check"), out: (line) => process.stderr.write(`gitboard update: ${line}\n`) });
 	}
 	const cmd = !first || first.startsWith("--") ? "serve" : first;
 	const args = !first || first.startsWith("--") ? argv : rest;
@@ -117,8 +128,9 @@ async function main(argv: string[]): Promise<number> {
 			process.stderr.write("gitboard: --port must be 1 to 65535\n");
 			return 1;
 		}
+		const running = version();
 		const server = await listen({ root, config, port });
-		process.stderr.write(`gitboard: ${server.url} (${path.join(root, config.roadmapDir)}). Press Ctrl+C to stop.\n`);
+		process.stderr.write(`gitboard ${running}: ${server.url} (${path.join(root, config.roadmapDir)}). Press Ctrl+C to stop.\n`);
 		if (args.includes("--open")) openBrowser(server.url);
 		return new Promise<number>(() => {});
 	}

@@ -48,6 +48,17 @@ The `-s` flag adds a `Signed-off-by:` line and states that you have the right to
 
 Keep one change per pull request. Describe what changed and how you checked it. Maintainers review every change, including ones written with AI help, and ask you to say so in the description.
 
+## Releasing
+
+Maintainers release from an up-to-date `main` with a clean tree. Say what changed under `## Unreleased` in `CHANGELOG.md` first; the release refuses an empty section.
+
+```sh
+npm version minor   # or patch, major: runs npm run check, files Unreleased under the version, commits and tags
+git push --follow-tags
+```
+
+The tag starts the Release workflow, which publishes to npmjs.com with provenance and opens a GitHub release from that version's changelog section, and the GitHub Packages mirror. Use patch for fixes, minor for new features or changed behaviour, and major when a config key, command or API response stops working as before.
+
 ## Reporting problems
 
 Bugs and ideas go in the issue tracker. Security problems follow [SECURITY.md](SECURITY.md).
