@@ -15,6 +15,7 @@ import { init } from "./init.js";
 import { runLint } from "./lint.js";
 import { moveFeature, planMove } from "./move.js";
 import { listen } from "./server.js";
+import { update } from "./update.js";
 
 const HELP = `GitBoard Canvas: a local kanban for a folder-based product lifecycle
 
@@ -27,6 +28,7 @@ Usage:
   gitboard init                          create the lifecycle folder, templates and config
   gitboard measure --from <iso> [--to <iso>]
                                          read the live routes from Tempo for the Architecture tab
+  gitboard update [--check]              update this install: pull and rebuild a linked clone, or the global package
   gitboard --version | --help
 `;
 
@@ -69,6 +71,9 @@ async function main(argv: string[]): Promise<number> {
 	if (first === "--version" || first === "-v") {
 		process.stdout.write(`${version()}\n`);
 		return 0;
+	}
+	if (first === "update") {
+		return update(PKG_ROOT, { check: rest.includes("--check"), out: (line) => process.stderr.write(`gitboard update: ${line}\n`) });
 	}
 	const cmd = !first || first.startsWith("--") ? "serve" : first;
 	const args = !first || first.startsWith("--") ? argv : rest;
