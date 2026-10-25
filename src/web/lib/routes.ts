@@ -30,39 +30,43 @@ export function drawRoutes(cols: Element | null | undefined, links: Link[]): voi
 		const r = anchor.getBoundingClientRect();
 		return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height, col };
 	};
-	// Lines never cross a card: they run vertically in the gutters between columns (gutter g sits left of column g)
-	// and cross a column only through an empty channel between its cards, group rows and header. Lines that share a
-	// gutter or a channel run on one path and branch off where they part.
+	// Lines never cross a card, a stage header or a column's own frame: they run vertically in the gutters between
+	// columns (gutter g sits left of column g) and cross a column only through an empty channel between two of its
+	// cards or group rows. A column with no such channel is passed in the lane above or below all the columns, outside
+	// them. Lines that share a gutter, a channel or a lane run on one path and branch off where they part.
 	const gutterX = (g: number) =>
-		g === 0 ? colRects[0].l + 4 : g === colRects.length ? colRects[g - 1].r - 4 : (colRects[g - 1].r + colRects[g].l) / 2;
+		g === 0 ? colRects[0].l - 6 : g === colRects.length ? colRects[g - 1].r + 6 : (colRects[g - 1].r + colRects[g].l) / 2;
+	const lanes = [
+		{ key: "lane.top", y: Math.min(...colEls.map((el) => el.getBoundingClientRect().top - base.top)) - 6 },
+		{ key: "lane.bottom", y: Math.max(...colEls.map((el) => el.getBoundingClientRect().bottom - base.top)) + 6 },
+	];
 	const channels = colEls.map((el) => {
-		const r = el.getBoundingClientRect();
-		const solid = [...el.querySelectorAll(".fwsh, .gh, .card, .card .chips")]
+		const solid = [...el.querySelectorAll(".gh, .card, .card .chips")]
 			.filter((n) => !n.closest(".grp[data-collapsed] .gb"))
 			.map((n) => {
 				const b = n.getBoundingClientRect();
 				return [b.top - base.top - 3, b.bottom - base.top + 3] as const;
 			})
 			.sort((a, b) => a[0] - b[0]);
+		// Only the gaps between two rows: above the first row is the stage header, below the last the column's frame.
 		const free: [number, number][] = [];
-		let at = r.top - base.top;
-		for (const [top, bottom] of solid) {
+		let at = solid[0]?.[1] ?? 0;
+		for (const [top, bottom] of solid.slice(1)) {
 			if (top - at >= 6) free.push([at, top]);
 			at = Math.max(at, bottom);
 		}
-		if (r.bottom - base.top - 8 - at >= 6) free.push([at, r.bottom - base.top - 8]);
 		return free;
 	});
 	const used = new Set<string>();
 	/** The channel through column k for a line at y heading to y2: least vertical travel, one already in use, roomy gaps, then nearest y2. */
 	const channel = (k: number, y: number, y2: number) => {
 		let best: { cost: number; key: string; y: number } | null = null;
-		channels[k].forEach(([top, bottom], i) => {
-			const mid = Math.round((top + bottom) / 2);
-			const key = `${k}.${i}`;
-			const cost = Math.abs(y - mid) + Math.abs(mid - y2) - (used.has(key) ? 80 : 0) + (bottom - top < 14 ? 40 : 0) + Math.abs(mid - y2) / 1000;
+		const consider = (key: string, mid: number, tight: boolean) => {
+			const cost = Math.abs(y - mid) + Math.abs(mid - y2) - (used.has(key) ? 80 : 0) + (tight ? 40 : 0) + Math.abs(mid - y2) / 1000;
 			if (!best || cost < best.cost) best = { cost, key, y: mid };
-		});
+		};
+		channels[k].forEach(([top, bottom], i) => consider(`${k}.${i}`, Math.round((top + bottom) / 2), bottom - top < 14));
+		for (const lane of lanes) consider(lane.key, lane.y, false);
 		if (best) used.add((best as { key: string }).key);
 		return best as { cost: number; key: string; y: number } | null;
 	};

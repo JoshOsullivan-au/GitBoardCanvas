@@ -167,7 +167,7 @@ States: Done, In progress, Planned.
 
 ## Open decisions
 
-- Release number: this ships after `git-github-workflow` (0.2.0) as 0.3.0, or before it as 0.2.0?
-- JSON schema validator for the contract tests (a dev dependency): `ajv`, or a small validator kept in `tests/`?
-- Plugin location: `.gitboard/plugins/<name>/` in the repo, or plugins named in `gitboard.config.json` by path?
-- Does the Architecture plugin ship inside the `gitboard-canvas` package, or as its own package?
+- Ship as 0.3.0 after `git-github-workflow`, or as 0.2.0 before it?
+- Test the contract with `ajv`, or with a small validator in `tests/`?
+- Keep plugins in `.gitboard/plugins/`, or list them in the config?
+- Ship the Architecture plugin in the main package, or on its own?
