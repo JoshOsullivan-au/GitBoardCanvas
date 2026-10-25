@@ -18,10 +18,10 @@ jobs:
         node: ["22.12", "current"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
       - run: git config --global user.email ci@example.com && git config --global user.name CI
