@@ -1,0 +1,10 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Print what a unified diff on stdin adds: each added line inside a hunk, and the path of every file it touches.
+# Header lines (diff, index, ---, +++) are never read as content, so an added line that itself starts with "++" is
+# kept. Used by pre-commit and pre-push with .githooks/private-terms.
+exec awk '
+	/^diff --git / { inhunk = 0; sub(/^diff --git a\/.* b\//, ""); print; next }
+	/^@@/ { inhunk = 1; next }
+	inhunk && /^\+/ { print substr($0, 2) }
+'

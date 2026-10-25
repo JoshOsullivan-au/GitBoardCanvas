@@ -1,0 +1,4 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Refuse a commit message that names another project (see .githooks/private-terms).
+"$(dirname "$0")/private-terms" "the commit message" < "$1" || { echo "commit-msg: the commit was not made" >&2; exit 1; }
