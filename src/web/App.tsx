@@ -1,88 +1,209 @@
 // SPDX-License-Identifier: MIT
-// The board page: a header with the view tabs and each view's tools, the Roadmap board, and the Architecture tab when
-// gitboard.config.json has an architecture block.
-import { useState } from "react";
+// The board page: a dashboard shell. The sidebar says where you are (views, stages, work in flight, what needs you,
+// docs); the top bar says what you can do here (menus and the view's search); the inset panel holds the view's header
+// and the Roadmap board, or the Architecture map when gitboard.config.json has an architecture block.
+import { type MouseEvent, type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Architecture } from "./architecture/Architecture";
-import { architectureOn } from "./lib/boot";
-import { Icon } from "./lib/icon";
+import { AppSidebar, type Doc, type Second, secondOf } from "./components/shell/AppSidebar";
+import { useDocDialog } from "./components/shell/DocDialog";
+import { TopBar } from "./components/shell/TopBar";
+import { SidebarInset, SidebarProvider } from "./components/ui/sidebar";
+import { TooltipProvider } from "./components/ui/tooltip";
+import { Architecture, type ArchitectureStatus } from "./architecture/Architecture";
+import { api } from "./lib/api";
+import { architectureOn, repoName } from "./lib/boot";
+import { placeKey, replaceRoute, type Route, useRoute, type ViewName } from "./lib/hash";
+import { navOf } from "./lib/nav";
 import { loadText, save } from "./lib/storage";
 import { PageProvider } from "./lib/ui";
-import { Roadmap } from "./roadmap/Roadmap";
+import { Roadmap, type RoadmapStatus } from "./roadmap/Roadmap";
 
-type Tab = "roadmap" | "architecture";
+/* The map needs its width: the sidebar opens expanded on the Roadmap and as icons on Architecture. After that each
+   view keeps the person's own toggle. */
+const SIDEBAR_KEY: Record<ViewName, string> = { roadmap: "gitboard-sidebar-roadmap", architecture: "gitboard-sidebar-architecture" };
+const sidebarOpen = (v: ViewName) => {
+	const saved = loadText(SIDEBAR_KEY[v]);
+	return saved ? saved === "expanded" : v === "roadmap";
+};
 
-function ThemeButton() {
+function useTheme() {
 	const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+	const toggle = () => {
+		document.documentElement.classList.toggle("dark", !dark);
+		save("gitboard-theme", dark ? "light" : "dark");
+		setDark(!dark);
+	};
+	return { dark, toggle };
+}
+
+/** Marks a board's scroll area once it leaves the top, so its sticky column headers turn more opaque (board.css). Set on
+ * the element, not in state: scrolling never re-renders the board. */
+const markScrolled = (e: UIEvent<HTMLDivElement>) => e.currentTarget.toggleAttribute("data-scrolled", e.currentTarget.scrollTop > 0);
+
+function Shell() {
+	const arch = architectureOn();
+	/* Roadmap is the default; with no place in the URL, the view a viewer last chose. */
+	const route = useRoute(() => (arch && loadText("gitboard-tab") === "architecture" ? "architecture" : "roadmap"));
+	const view: ViewName = arch ? route.view : "roadmap";
+	useEffect(() => save("gitboard-tab", view), [view]);
+	useEffect(() => {
+		if (view !== route.view) replaceRoute({ view });
+	}, [view, route.view]);
+
+	/* The second bar (Work in flight or Needs you) opens beside the main bar, which shrinks to icons while it is open.
+	   A branch or "Needs you" place opens its bar. */
+	const [second, setSecond] = useState<Second | null>(() => secondOf(route));
+	/* Every branch or "Needs you" place reached by a link (reload, back, forward) opens its second bar, including a move
+	   from one branch to another. The place itself is watched, not only which bar it belongs to. */
+	const place = placeKey(route);
+	/* Set when the person picks a row in the second bar: that place is reached from the bar, which then closes. */
+	const rowPicked = useRef(false);
+	useEffect(() => {
+		if (!place) return;
+		if (rowPicked.current) {
+			rowPicked.current = false;
+			return;
+		}
+		setSecond(secondOf(route));
+		setOpen(false);
+		// The route is read as it stands when the place changes.
+	}, [place]);
+	const onSecond = (s: Second | null) => {
+		setSecond(s);
+		if (s) setOpen(false);
+	};
+	/* A branch or filter picked in the second bar: the bar closes, the main bar stays shrunk, the place opens. A branch
+	   also opens its lead feature's details. */
+	const [show, setShow] = useState<{ id: string; n: number } | null>(null);
+	const onRow = (target: Pick<Route, "branch" | "need">, feature?: string) => {
+		if (feature) setShow((prev) => ({ id: feature, n: (prev?.n ?? 0) + 1 }));
+		setSecond(null);
+		setOpen(false);
+		// Only a pick that changes the place reaches the effect above; picking the place you are on changes nothing.
+		if (placeKey(target) !== place) rowPicked.current = true;
+		if (view !== "roadmap") picked.current = true;
+	};
+
+	const [open, setOpen] = useState(() => !secondOf(route) && sidebarOpen(view));
+	/* Picking Roadmap or Architecture in the sidebar folds it to icons, closes the second bar and opens the view; reaching
+	   a view any other way (reload, back, the breadcrumb) gives it its own remembered toggle, unless a second bar is open.
+	   None of these changes what is remembered. */
+	const picked = useRef(false);
+	useEffect(() => {
+		setOpen(picked.current || second ? false : sidebarOpen(view));
+		picked.current = false;
+		// Only a change of view applies the remembered toggle; the second bar is read as it stands.
+	}, [view]);
+	const onPick = (to: ViewName) => {
+		setSecond(null);
+		if (to === view) setOpen(false);
+		else picked.current = true;
+	};
+	/* The person's own toggle: remembered for this view; expanding the main bar closes the second one. */
+	const onOpenChange = (o: boolean) => {
+		setOpen(o);
+		if (o) setSecond(null);
+		save(SIDEBAR_KEY[view], o ? "expanded" : "icons");
+	};
+
+	const [roadmap, setRoadmap] = useState<RoadmapStatus>({ model: null, readAt: null, failed: false });
+	const [map, setMap] = useState<ArchitectureStatus>({ pages: null });
+	const onRoadmap = useCallback((s: RoadmapStatus) => setRoadmap(s), []);
+	const onMap = useCallback((s: ArchitectureStatus) => setMap(s), []);
+	const nav = useMemo(() => (roadmap.model ? navOf(roadmap.model) : null), [roadmap.model]);
+
+	const [docs, setDocs] = useState<Doc[]>([]);
+	useEffect(() => {
+		api<{ docs: Doc[] }>("/api/docs")
+			.then((r) => setDocs(r.docs))
+			.catch(() => setDocs([]));
+	}, []);
+	const roadmapDir = roadmap.model?.roadmapDir ?? null;
+	const guide = docs.find((d) => roadmapDir && d.path === `${roadmapDir}/README.md`) ?? null;
+	const { openDoc, dialog } = useDocDialog(roadmapDir, docs);
+
+	const theme = useTheme();
+	const [roadmapSearch, setRoadmapSearch] = useState<HTMLDivElement | null>(null);
+	const [archSearch, setArchSearch] = useState<HTMLDivElement | null>(null);
+	const [roadmapTools, setRoadmapTools] = useState<HTMLDivElement | null>(null);
+	const [archTools, setArchTools] = useState<HTMLDivElement | null>(null);
+
+	const fact = view === "roadmap" ? (nav ? `${nav.features === 1 ? "1 feature" : `${nav.features} features`} in ${nav.stages.length} stages` : "") : map.pages ? `${map.pages === 1 ? "1 page" : `${map.pages} pages`} measured` : "";
+
 	return (
-		<button
-			type="button"
-			className="icon-btn"
-			id="theme"
-			aria-label="Switch theme"
-			onClick={() => {
-				document.documentElement.classList.toggle("dark", !dark);
-				save("gitboard-theme", dark ? "light" : "dark");
-				setDark(!dark);
-			}}
+		<SidebarProvider
+			className="app-shell"
+			open={open}
+			onOpenChange={onOpenChange}
 		>
-			<Icon name={dark ? "Sun" : "Moon"} />
-		</button>
+			<a
+				className="skip"
+				href="#content"
+				onClick={(e: MouseEvent<HTMLAnchorElement>) => {
+					e.preventDefault();
+					document.getElementById("content")?.focus();
+				}}
+			>
+				Skip to the board
+			</a>
+			<AppSidebar
+				repo={repoName()}
+				mainBranch={roadmap.model?.mainBranch ?? null}
+				route={{ ...route, view }}
+				nav={nav}
+				arch={arch}
+				archPages={map.pages}
+				docs={docs}
+				openDoc={openDoc}
+				status={{ readAt: roadmap.readAt, failed: roadmap.failed, github: roadmap.model?.github ?? null }}
+				dark={theme.dark}
+				toggleTheme={theme.toggle}
+				onPick={onPick}
+				second={second}
+				onSecond={onSecond}
+				onRow={onRow}
+			/>
+			<SidebarInset className="app-inset" id="content" tabIndex={-1}>
+				<TopBar
+					route={{ ...route, view }}
+					nav={nav}
+					guide={guide}
+					openDoc={openDoc}
+					search={
+						<>
+							<div className="tb-slot" hidden={view !== "roadmap"} ref={setRoadmapSearch}></div>
+							{arch ? <div className="tb-slot" hidden={view !== "architecture"} ref={setArchSearch}></div> : null}
+						</>
+					}
+				/>
+				<div className="vh">
+					<div className="vh-left">
+						<h1>{view === "roadmap" ? "Roadmap" : "Architecture"}</h1>
+						<span className="vh-fact">{fact}</span>
+					</div>
+					<div className="tools" data-view="roadmap" hidden={view !== "roadmap"} ref={setRoadmapTools}></div>
+					{arch ? <div className="tools" data-view="architecture" hidden={view !== "architecture"} ref={setArchTools}></div> : null}
+				</div>
+				<div className="scroll" id="scroll" hidden={view !== "roadmap"} onScroll={markScrolled}>
+					<Roadmap tools={roadmapTools} search={roadmapSearch} route={route} onStatus={onRoadmap} show={show} />
+				</div>
+				{arch ? (
+					<div className="scroll" id="archScroll" hidden={view !== "architecture"} onScroll={markScrolled}>
+						<Architecture active={view === "architecture"} tools={archTools} search={archSearch} onStatus={onMap} />
+					</div>
+				) : null}
+			</SidebarInset>
+			{dialog}
+		</SidebarProvider>
 	);
 }
 
 export function App() {
-	const arch = architectureOn();
-	/* Roadmap first and the default; the tab a viewer last chose is remembered. */
-	const [tab, setTab] = useState<Tab>(() => (arch && loadText("gitboard-tab") === "architecture" ? "architecture" : "roadmap"));
-	const [roadmapTools, setRoadmapTools] = useState<HTMLDivElement | null>(null);
-	const [archTools, setArchTools] = useState<HTMLDivElement | null>(null);
-	const choose = (t: Tab) => {
-		setTab(t);
-		save("gitboard-tab", t);
-	};
 	return (
 		<PageProvider>
-			<main className="page">
-				<header className="ph-head">
-					<div className="ph-left">
-						<h1>GitBoard Canvas</h1>
-						{arch ? (
-							<div className="tabs" role="tablist" aria-label="View">
-								{(["roadmap", "architecture"] as const).map((t) => (
-									<button
-										key={t}
-										type="button"
-										className="opt"
-										role="tab"
-										id={`tab-${t}`}
-										aria-selected={tab === t}
-										aria-pressed={tab === t}
-										aria-controls={t === "roadmap" ? "scroll" : "archScroll"}
-										data-tab={t}
-										onClick={() => choose(t)}
-									>
-										{t === "roadmap" ? "Roadmap" : "Architecture"}
-									</button>
-								))}
-							</div>
-						) : null}
-					</div>
-					<div className="tools">
-						<div className="tools" data-view="roadmap" hidden={tab !== "roadmap"} ref={setRoadmapTools}></div>
-						{arch ? <div className="tools" data-view="architecture" hidden={tab !== "architecture"} ref={setArchTools}></div> : null}
-						<ThemeButton />
-					</div>
-				</header>
-				<div className="scroll" id="scroll" hidden={tab !== "roadmap"} {...(arch ? { role: "tabpanel", "aria-labelledby": "tab-roadmap" } : {})}>
-					<Roadmap tools={roadmapTools} />
-				</div>
-				{arch ? (
-					<div className="scroll" id="archScroll" role="tabpanel" aria-labelledby="tab-architecture" hidden={tab !== "architecture"}>
-						<Architecture active={tab === "architecture"} tools={archTools} />
-					</div>
-				) : null}
-			</main>
+			<TooltipProvider>
+				<Shell />
+			</TooltipProvider>
 		</PageProvider>
 	);
 }

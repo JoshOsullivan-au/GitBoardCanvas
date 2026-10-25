@@ -6,9 +6,16 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
 ### Changed
 
+- The board is a dashboard shell. A shadcn sidebar says where you are: Roadmap, with Work in flight and Needs you under it, and Architecture, each with its count; the docs, the theme and the read status sit at its foot. Work in flight and Needs you open a second bar beside the main one, which shrinks to icons, listing each branch with work or what needs you (blocked, gated, checks failing, needs review); picking one opens it on the board and closes the bar, and a branch also opens its feature's details. A slim top bar holds the breadcrumb, the Lifecycle and Help menus and the view's search. Every place is a link (`#/roadmap?stage=2`, `#/roadmap?branch=…`, `#/architecture`), so back, forward and reload work. Picking Roadmap or Architecture folds the sidebar to icons and opens the view. Reached another way, the sidebar opens expanded on the Roadmap and folded on Architecture, then remembers each view's toggle; ⌘B or Ctrl+B toggles it. The view tabs in the header are gone, and the map's link corridors are 64px beside the sidebar. Once a board scrolls, its sticky column headers turn more opaque so cards passing under them do not show through.
+
 - The board page is built in React from `src/web` and ships as one inlined page, with the same look and behaviour. shadcn/ui parts can be added on the board's tokens (ADR 0004). React, Vite and Tailwind are build-time only; the one runtime dependency is still `marked`.
 
 ### Added
+
+- Hovering or focusing a card draws each dependency that still blocks as a red dotted line with an arrowhead, to or from the blocked features, above the other links. Dependencies that no longer block keep their soft blue line.
+
+- `GET /api/docs` lists the docs the sidebar offers: the lifecycle folder's README and, when the repo has them, `docs/spec.md`, `docs/configuration.md`, `docs/adr/README.md` and `CHANGELOG.md`. `GET /api/doc` opens those paths too, and still no other file outside the lifecycle folder.
+- Icons `ArrowSquareOut`, `DotsThree`, `FileText`, `Kanban`, `Sidebar` and `TreeStructure`.
 
 - Architecture tab beside the Roadmap board, shown when `gitboard.config.json` has an `architecture` block. It lays out every page the app serves (request, pages, database, cache and providers), with each page's warm server time against a budget, its calls and their waves, a hover trace drawn with the board's own link routing, and a read path per page and per endpoint.
 - `gitboard measure --from <iso> [--to <iso>]` reads the live pages of a Next.js app router from Grafana Tempo through `gcx` and writes the tab's data file.

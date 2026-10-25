@@ -8,8 +8,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { prStates, prWorst } from "../src/web/lib/git";
+import { secondOf } from "../src/web/components/shell/AppSidebar";
+import { hashOf, parseHash, placeKey } from "../src/web/lib/hash";
+import { resolveRel } from "../src/web/lib/markdown";
+import { NEED_FILTER, navOf, placeFilters } from "../src/web/lib/nav";
 import { Card } from "../src/web/roadmap/Card";
-import { buildModel, filterOptions } from "../src/web/roadmap/model";
+import { buildModel, emptyFilters, filterOptions } from "../src/web/roadmap/model";
 import type { Board, Card as CardData } from "../src/types.js";
 
 const web = path.resolve(import.meta.dirname, "../src/web");
@@ -75,7 +79,8 @@ describe("board page", () => {
 
 	it("sets HTML only from the server's rendered markdown, whose raw HTML the server escapes", () => {
 		expect(source.match(/dangerouslySetInnerHTML/g)).toHaveLength(1);
-		expect(read("roadmap/Details.tsx")).toContain("dangerouslySetInnerHTML={{ __html: view.html }}");
+		expect(read("lib/markdown.tsx")).toContain("dangerouslySetInnerHTML={{ __html: html }}");
+		expect(read("roadmap/Details.tsx")).toContain("<Markdown html={view.html}");
 	});
 });
 
@@ -141,11 +146,11 @@ describe("architecture tab", () => {
 		for (const name of new Set([...named, ...fixed, ...used])) expect(Object.keys(icons), name).toContain(name);
 	});
 
-	it("puts the tabs in the header as pills, Roadmap first and the default, remembered per viewer", () => {
+	it("opens on the Roadmap by default, or on the view a viewer last chose, and shows Architecture only when configured", () => {
 		const app = read("App.tsx");
-		expect(app).toContain('(["roadmap", "architecture"] as const)');
 		expect(app).toContain('loadText("gitboard-tab") === "architecture" ? "architecture" : "roadmap"');
-		expect(app).toMatch(/const arch = architectureOn\(\);[\s\S]*\{arch \? \(\s*<div className="tabs" role="tablist"/);
+		expect(app).toContain('const view: ViewName = arch ? route.view : "roadmap";');
+		expect(read("components/shell/AppSidebar.tsx")).toMatch(/\{arch \? \(\s*<Place\s+href=\{hashOf\(\{ view: "architecture" \}\)\}/);
 	});
 
 	it("routes links through one shared router", () => {
@@ -154,11 +159,179 @@ describe("architecture tab", () => {
 		expect(read("architecture/Architecture.tsx")).toContain("drawRoutes(");
 	});
 
+	it("turns the sticky column headers more opaque once a board scrolls", () => {
+		expect(css).toContain(".scroll[data-scrolled] .fwsh.lg { --lg-base: color-mix(in oklab, var(--background) 88%, transparent); }");
+		const app = read("App.tsx");
+		expect(app).toContain('e.currentTarget.toggleAttribute("data-scrolled", e.currentTarget.scrollTop > 0)');
+		expect(app.match(/onScroll=\{markScrolled\}/g)).toHaveLength(2);
+	});
+
+	it("draws a link that still blocks as red dots, on top, and keeps the map's calls as they were", () => {
+		expect(css).toContain(".fwlinks .stop path { stroke: var(--stop); stroke-width: 2; stroke-dasharray: 0 5; }");
+		expect(css).toContain("--stop: oklch(0.79 0.192 19.6);");
+		expect(css).toContain("--stop: oklch(0.71 0.164 18.3);");
+		expect(read("lib/routes.ts")).toContain('const KINDS = ["lnk", "dep", "blk", "stop"] as const;');
+		const roadmap = read("roadmap/Roadmap.tsx");
+		expect(roadmap.match(/\? "stop" : "dep"/g)).toHaveLength(2);
+		expect(roadmap).not.toContain('"blk"');
+		expect(read("architecture/Architecture.tsx")).toContain('cls: shell ? "lnk" : "blk"');
+	});
+
 	it("keeps the approved fixed columns", () => {
 		expect(css).toContain(".arch .fwcols { grid-template-columns: 216px 292px 292px 292px; column-gap: 88px;");
 	});
 
 	it("lets Tailwind scan only the shadcn parts, so board class names never become utilities", () => {
 		expect(read("styles/index.css")).toMatch(/@import "tailwindcss" source\(none\);[\s\S]*@source "\.\.\/components";/);
+	});
+});
+
+describe("shell", () => {
+	it("puts Work in flight and Needs you under Roadmap, each opening a second bar while the main one shrinks", () => {
+		const bar = read("components/shell/AppSidebar.tsx");
+		const order = [...bar.matchAll(/<(Place|Opener)\s+(?:href=\{[^}]+\}\)?\}\s+)?(?:second="\w+"\s+)?icon="\w+"\s+label="([^"]+)"/g)].map((m) => `${m[1]} ${m[2]}`);
+		expect(order).toEqual(["Opener Work in flight", "Opener Needs you", "Place Roadmap", "Place Architecture"]);
+		expect(bar).toMatch(/onPick=\{\(\) => onPick\("roadmap"\)\}\s*>\s*\{icons \? null : openers\}\s*<\/Place>/);
+		expect(secondOf(parseHash("#/roadmap?branch=x")!)).toBe("flight");
+		expect(secondOf(parseHash("#/roadmap?need=gated")!)).toBe("needs");
+		expect(secondOf(parseHash("#/roadmap?stage=2")!)).toBeNull();
+		const app = read("App.tsx");
+		expect(app).toMatch(/const onSecond = \(s: Second \| null\) => \{\s*setSecond\(s\);\s*if \(s\) setOpen\(false\);/);
+		expect(app).toMatch(/const onOpenChange = \(o: boolean\) => \{\s*setOpen\(o\);\s*if \(o\) setSecond\(null\);/);
+		expect(app).toContain("setOpen(picked.current || second ? false : sidebarOpen(view));");
+		// A row picked in the second bar closes it and keeps the main bar shrunk; the arrival rule does not reopen it.
+		expect(app).toMatch(/if \(placeKey\(target\) !== place\) rowPicked\.current = true;/);
+		expect(bar).toContain("onPick={() => onRow({ branch: b.branch, need: null }, b.lead)}");
+		// A branch also opens its lead feature's details panel, once per pick.
+		expect(app).toContain("if (feature) setShow((prev) => ({ id: feature, n: (prev?.n ?? 0) + 1 }));");
+		expect(read("roadmap/Roadmap.tsx")).toMatch(/if \(show && model\?\.byId\.has\(show\.id\)\) openDetails\(show\.id\);[\s\S]*?\}, \[show\?\.n\]\);/);
+		expect(bar).toContain("onPick={() => onRow({ branch: null, need: x.need })}");
+		// Back from branch B to branch A is a new place, so its second bar opens again (PR #6 review).
+		expect(app).toContain("}, [place]);");
+		expect(placeKey(parseHash("#/roadmap?branch=a")!)).not.toBe(placeKey(parseHash("#/roadmap?branch=b")!));
+		expect(placeKey(parseHash("#/roadmap?need=blocked")!)).not.toBe(placeKey(parseHash("#/roadmap?need=gated")!));
+		expect(placeKey(parseHash("#/roadmap?stage=2")!)).toBeNull();
+	});
+
+	it("names every place with a hash, and reads only the places it names", () => {
+		for (const h of ["#/roadmap", "#/roadmap?stage=2", "#/roadmap?branch=feat%2Fa%20b", "#/roadmap?need=blocked", "#/architecture"]) {
+			expect(hashOf(parseHash(h)!)).toBe(h);
+		}
+		expect(parseHash("#/roadmap?branch=feat%2Fa%20b")?.branch).toBe("feat/a b");
+		expect(parseHash("#/roadmap?need=everything")?.need).toBeNull();
+		expect(parseHash("#/roadmap?stage=-1")?.stage).toBeNull();
+		for (const h of ["", "#", "#/", "#/settings", "#roadmap"]) expect(parseHash(h)).toBeNull();
+		// One place at a time, in the order hashOf writes them.
+		expect(parseHash("#/roadmap?stage=2&need=blocked&branch=x")).toMatchObject({ stage: 2, branch: null, need: null });
+		expect(parseHash("#/roadmap?need=blocked&branch=x")).toMatchObject({ branch: "x", need: null });
+	});
+
+	it("shows only a Needs you place's filter while there, and gives the person's own filters back on leaving", () => {
+		const own = emptyFilters();
+		own.state.add("linked");
+		own.group.add("Core");
+		const blocked = placeFilters("blocked", own, null);
+		expect(blocked.own).toBe(own);
+		expect([...blocked.shown.state]).toEqual(["blocked"]);
+		expect(blocked.shown.group.size).toBe(0);
+		// Place to place keeps the filters set aside first, not the previous place's.
+		const failing = placeFilters("failing", blocked.shown, blocked.own);
+		expect(failing.own).toBe(own);
+		expect([...failing.shown.git]).toEqual(["failing"]);
+		expect(placeFilters(null, failing.shown, failing.own)).toEqual({ shown: own, own: null });
+		// Any other place leaves the filters as they are.
+		const same = emptyFilters();
+		expect(placeFilters(null, same, null).shown).toBe(same);
+		// The Roadmap saves the person's filters, never a place's, and a change they make there is theirs.
+		const roadmap = read("roadmap/Roadmap.tsx");
+		expect(roadmap).toContain("next.filters ?? ownFilters.current ?? filters");
+		expect(roadmap).toMatch(/const ownChange = \(next: Filters\) => \{\s*ownFilters\.current = null;/);
+	});
+
+	it("keeps the place when the skip link moves focus to the board", () => {
+		expect(read("App.tsx")).toMatch(/className="skip"[\s\S]*?e\.preventDefault\(\);\s*document\.getElementById\("content"\)\?\.focus\(\);/);
+		expect(read("lib/hash.ts")).toContain('if (location.hash.length > 1 && !location.hash.startsWith("#/")) return;');
+	});
+
+	it("counts per stage and per branch, and shows a Needs you item only when it has features, matching its filter", () => {
+		const git = (branch: string, wip: number, pr: Partial<NonNullable<CardData["git"][number]["pr"]>> | null = null) => ({
+			branch,
+			wip,
+			staged: 0,
+			committed: 1,
+			commits: 1,
+			files: { wip: [], staged: [], committed: [] },
+			via: "branch" as const,
+			pr: pr && { number: 7, url: "", title: "", draft: false, checks: null, review: null, conflicts: false, ...pr },
+		});
+		const cards = [
+			card({ id: "1:a", slug: "a", git: [git("feat-x", 2, { checks: "fail" })], decisions: ["?"] }),
+			card({ id: "1:b", slug: "b", git: [git("feat-x", 1, { checks: "fail" }), git("feat-y", 0)], deps: ["1:a"] }),
+			card({ id: "2:c", slug: "c", stage: 2 }),
+		];
+		const m = buildModel(board(cards));
+		const nav = navOf(m);
+		expect(nav.stages.map((s) => s.count)).toEqual([2, 1]);
+		expect(nav.branches).toMatchObject([
+			// a has 3 files on feat-x and b has 2, so a leads.
+			{ branch: "feat-x", files: 5, features: 2, lead: "1:a", pr: { number: 7, worst: { text: "Checks failing" } } },
+			{ branch: "feat-y", files: 1, features: 1, lead: "1:b", pr: null },
+		]);
+		const opts = filterOptions(m);
+		for (const n of nav.needs) {
+			const [g, v] = NEED_FILTER[n.need];
+			expect(m.cards.filter(opts[g].find(([value]) => value === v)![3]).length, n.need).toBe(n.count);
+		}
+		expect(nav.needs.map((n) => n.need)).toEqual(["blocked", "gated", "failing"]);
+		// a is gated and failing, b is blocked and failing: two features, though three items count them.
+		expect(nav.attention).toBe(2);
+		expect(navOf(buildModel({ ...board(cards), github: false })).needs.map((n) => n.need)).toEqual(["blocked", "gated"]);
+		expect(navOf(buildModel(board([card()]))).needs).toEqual([]);
+	});
+
+	it("opens the sidebar expanded on the Roadmap and as icons on Architecture, then keeps each view's own toggle", () => {
+		const app = read("App.tsx");
+		expect(app).toContain('{ roadmap: "gitboard-sidebar-roadmap", architecture: "gitboard-sidebar-architecture" }');
+		expect(app).toContain('return saved ? saved === "expanded" : v === "roadmap";');
+		expect(read("components/ui/sidebar.tsx")).not.toContain("document.cookie");
+	});
+
+	it("folds the sidebar when Roadmap or Architecture is picked, without changing what each view remembers", () => {
+		const app = read("App.tsx");
+		expect(app).toMatch(/const onPick = \(to: ViewName\) => \{\s*setSecond\(null\);\s*if \(to === view\) setOpen\(false\);\s*else picked\.current = true;/);
+		const bar = read("components/shell/AppSidebar.tsx");
+		expect(bar).toContain('onPick={() => onPick("roadmap")}');
+		expect(bar).toContain('onPick={() => onPick("architecture")}');
+	});
+
+	it("ships no agent state files in the web source (PR #6 review)", () => {
+		const all = fs.readdirSync(web, { recursive: true, encoding: "utf8" });
+		expect(all.filter((f) => f.split(path.sep).includes(".omc"))).toEqual([]);
+		expect(fs.readFileSync(path.resolve(import.meta.dirname, "../.gitignore"), "utf8")).toMatch(/^\.omc\/$/m);
+	});
+
+	it("keeps its own class names apart from the board's, so no board card picks up shell layout", () => {
+		// .shell is the map's shell endpoint card; no rule may select it on its own.
+		expect(css).not.toMatch(/(^|,)\s*\.shell[\s{,:]/m);
+		expect(read("App.tsx")).toContain('className="app-shell"');
+		expect(css).toContain(".app-shell .arch .fwcols { column-gap: 64px; }");
+	});
+
+	it("drops a doc reply that comes back after Back, Close or a newer pick (PR #6 review)", () => {
+		const dialog = read("components/shell/DocDialog.tsx");
+		expect(dialog).toMatch(/const req = \+\+latest\.current;[\s\S]*?if \(req !== latest\.current\) return;\s*setTrail/);
+		expect(dialog.match(/latest\.current\+\+;/g)).toHaveLength(2);
+	});
+
+	it("lets outside and mail links through, and never runs another scheme (PR #6 review)", () => {
+		const md = read("lib/markdown.tsx");
+		expect(md).toContain("const OUTSIDE = /^(?:https?:)?\\/\\//i;");
+		expect(md).toMatch(/if \(OUTSIDE\.test\(href\) \|\| MAIL\.test\(href\)\) return;\s*e\.preventDefault\(\);\s*if \(SCHEME\.test\(href\)\) return;/);
+	});
+
+	it("resolves doc links against the open doc's folder", () => {
+		expect(resolveRel("docs/spec.md", "../CHANGELOG.md")).toBe("CHANGELOG.md");
+		expect(resolveRel("roadmap/README.md", "./1.ideas/")).toBe("roadmap/1.ideas/README.md");
+		expect(resolveRel("roadmap/3.open/a.md", "b.md#top")).toBe("roadmap/3.open/b.md");
 	});
 });

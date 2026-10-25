@@ -178,15 +178,15 @@ export function placed(m: Model, held: Held): Feature[] {
 	return m.cards.map((c) => (c.id === held.id ? { ...c, stage: held.stage, top: true } : c));
 }
 
-/** What decides whether a card shows: the search, the filters and their options, the order, and a pinned card (the
- * one being dragged or grabbed, which always shows). */
-export type View = { q: string; filters: Filters; opts: Record<FilterGroup, FilterOption[]>; order: string; pinned: string | null };
+/** What decides whether a card shows: the search, the filters and their options, the order, a pinned card (the
+ * one being dragged or grabbed, which always shows), and a branch from the sidebar (only features with work on it). */
+export type View = { q: string; filters: Filters; opts: Record<FilterGroup, FilterOption[]>; order: string; pinned: string | null; branch: string | null };
 
 const inGroup = (v: View, g: FilterGroup, c: Feature) => !v.filters[g].size || v.opts[g].some(([val, , , test]) => v.filters[g].has(val) && test(c));
 
 export function visible(v: View, c: Feature): boolean {
 	if (v.pinned === c.id) return true;
-	return searchHit(v.q, c) && FILTER_GROUPS.every((g) => inGroup(v, g, c));
+	return searchHit(v.q, c) && (!v.branch || c.git.some((g) => g.branch === v.branch)) && FILTER_GROUPS.every((g) => inGroup(v, g, c));
 }
 
 export function cellCards(cards: Feature[], v: View, group: string, stage: number): Feature[] {
