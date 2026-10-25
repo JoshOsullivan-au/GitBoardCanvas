@@ -21,14 +21,19 @@ export function useDocDialog(roadmapDir: string | null, docs: Doc[]) {
 	const back = useRef<HTMLButtonElement>(null);
 	const close = useRef<HTMLButtonElement>(null);
 
+	/* Each request gets a number; Back, Close and a newer request move it on, so a reply that comes back late neither
+	   reopens a closed dialog nor replaces a newer choice. */
+	const latest = useRef(0);
 	const show = async (d: Doc, push: boolean) => {
+		const req = ++latest.current;
 		let html: string;
 		try {
 			({ html } = await api<{ html: string }>(`/api/doc?path=${encodeURIComponent(d.path)}`));
 		} catch (error) {
-			toast(firstLine((error as Error).message), { err: true });
+			if (req === latest.current) toast(firstLine((error as Error).message), { err: true });
 			return;
 		}
+		if (req !== latest.current) return;
 		setTrail((t) => (push ? [...t, { ...d, html }] : [{ ...d, html }]));
 		setOpen(true);
 	};
@@ -45,7 +50,10 @@ export function useDocDialog(roadmapDir: string | null, docs: Doc[]) {
 			labelledBy="doc-title"
 			open={open}
 			/* The trail stays for the closing fade; the next doc opened starts a new one. */
-			onClose={() => setOpen(false)}
+			onClose={() => {
+				latest.current++;
+				setOpen(false);
+			}}
 			backdrop
 			ref={modal}
 		>
@@ -56,7 +64,18 @@ export function useDocDialog(roadmapDir: string | null, docs: Doc[]) {
 					</button>
 					<div className="doc-head">
 						{trail.length > 1 ? (
-							<button type="button" className="icon-btn" data-back data-autofocus aria-label="Back" ref={back} onClick={() => setTrail((t) => t.slice(0, -1))}>
+							<button
+								type="button"
+								className="icon-btn"
+								data-back
+								data-autofocus
+								aria-label="Back"
+								ref={back}
+								onClick={() => {
+									latest.current++;
+									setTrail((t) => t.slice(0, -1));
+								}}
+							>
 								<Icon name="CaretLeft" />
 							</button>
 						) : null}

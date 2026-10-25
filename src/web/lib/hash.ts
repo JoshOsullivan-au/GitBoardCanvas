@@ -29,6 +29,10 @@ export function parseHash(hash: string): Route | null {
 	return { view, stage, branch, need: !stage && !branch && (NEEDS as readonly string[]).includes(need ?? "") ? (need as Need) : null };
 }
 
+/** A branch or "Needs you" place as one value, so a change from one branch to another counts as a change; null for
+ * any other place. */
+export const placeKey = (r: Pick<Route, "branch" | "need">): string | null => (r.branch ? `branch:${r.branch}` : r.need ? `need:${r.need}` : null);
+
 /** The hash for a route. At most one of stage, branch and need is kept, in that order. */
 export function hashOf(r: Partial<Route> & { view: ViewName }): string {
 	if (r.view === "architecture") return "#/architecture";

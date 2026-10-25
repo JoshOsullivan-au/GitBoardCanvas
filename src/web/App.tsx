@@ -12,7 +12,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { Architecture, type ArchitectureStatus } from "./architecture/Architecture";
 import { api } from "./lib/api";
 import { architectureOn, repoName } from "./lib/boot";
-import { replaceRoute, useRoute, type ViewName } from "./lib/hash";
+import { placeKey, replaceRoute, type Route, useRoute, type ViewName } from "./lib/hash";
 import { navOf } from "./lib/nav";
 import { loadText, save } from "./lib/storage";
 import { PageProvider } from "./lib/ui";
@@ -53,18 +53,21 @@ function Shell() {
 	/* The second bar (Work in flight or Needs you) opens beside the main bar, which shrinks to icons while it is open.
 	   A branch or "Needs you" place opens its bar. */
 	const [second, setSecond] = useState<Second | null>(() => secondOf(route));
-	const placeSecond = secondOf(route);
+	/* Every branch or "Needs you" place reached by a link (reload, back, forward) opens its second bar, including a move
+	   from one branch to another. The place itself is watched, not only which bar it belongs to. */
+	const place = placeKey(route);
 	/* Set when the person picks a row in the second bar: that place is reached from the bar, which then closes. */
 	const rowPicked = useRef(false);
 	useEffect(() => {
-		if (!placeSecond) return;
+		if (!place) return;
 		if (rowPicked.current) {
 			rowPicked.current = false;
 			return;
 		}
-		setSecond(placeSecond);
+		setSecond(secondOf(route));
 		setOpen(false);
-	}, [placeSecond]);
+		// The route is read as it stands when the place changes.
+	}, [place]);
 	const onSecond = (s: Second | null) => {
 		setSecond(s);
 		if (s) setOpen(false);
@@ -72,11 +75,12 @@ function Shell() {
 	/* A branch or filter picked in the second bar: the bar closes, the main bar stays shrunk, the place opens. A branch
 	   also opens its lead feature's details. */
 	const [show, setShow] = useState<{ id: string; n: number } | null>(null);
-	const onRow = (s: Second, feature?: string) => {
+	const onRow = (target: Pick<Route, "branch" | "need">, feature?: string) => {
 		if (feature) setShow((prev) => ({ id: feature, n: (prev?.n ?? 0) + 1 }));
 		setSecond(null);
 		setOpen(false);
-		if (s !== placeSecond) rowPicked.current = true;
+		// Only a pick that changes the place reaches the effect above; picking the place you are on changes nothing.
+		if (placeKey(target) !== place) rowPicked.current = true;
 		if (view !== "roadmap") picked.current = true;
 	};
 

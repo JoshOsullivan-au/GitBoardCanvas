@@ -126,7 +126,7 @@ function Waiting({ loading, children }: { loading: boolean; children: ReactNode 
 }
 
 /** The second bar: the list Work in flight or Needs you opened, beside the main bar. */
-function SecondBar({ second, nav, route, loading, onClose, onRow }: { second: Second; nav: Nav | null; route: Route; loading: boolean; onClose: () => void; onRow: (s: Second, feature?: string) => void }) {
+function SecondBar({ second, nav, route, loading, onClose, onRow }: { second: Second; nav: Nav | null; route: Route; loading: boolean; onClose: () => void; onRow: (target: Pick<Route, "branch" | "need">, feature?: string) => void }) {
 	const onRoadmap = route.view === "roadmap";
 	const flight = second === "flight";
 	const title = flight ? "Work in flight" : "Needs you";
@@ -157,7 +157,7 @@ function SecondBar({ second, nav, route, loading, onClose, onRow }: { second: Se
 										active={onRoadmap && route.branch === b.branch}
 										tone={b.pr?.worst?.attn ? "att" : undefined}
 										title={[b.branch, b.files ? count(b.files, "file") : null, b.pr ? `PR #${b.pr.number}${b.pr.worst ? `: ${b.pr.worst.text}` : ""}` : null].filter(Boolean).join(" · ")}
-										onPick={() => onRow("flight", b.lead)}
+										onPick={() => onRow({ branch: b.branch, need: null }, b.lead)}
 									/>
 								))
 							) : (
@@ -173,7 +173,7 @@ function SecondBar({ second, nav, route, loading, onClose, onRow }: { second: Se
 									n={x.count}
 									active={onRoadmap && route.need === x.need}
 									tone={x.need === "failing" ? "att" : undefined}
-									onPick={() => onRow("needs")}
+									onPick={() => onRow({ branch: null, need: x.need })}
 								/>
 							))
 						) : (
@@ -223,7 +223,7 @@ export function AppSidebar({
 	onSecond: (s: Second | null) => void;
 	/** A row in the second bar was picked: the shell closes the bar as the place opens, and for a branch opens its lead
 	 * feature's details. */
-	onRow: (s: Second, feature?: string) => void;
+	onRow: (target: Pick<Route, "branch" | "need">, feature?: string) => void;
 }) {
 	const { state, isMobile, setOpenMobile } = useSidebar();
 	const icons = state === "collapsed" && !isMobile;

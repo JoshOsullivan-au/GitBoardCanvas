@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import { prStates, prWorst } from "../src/web/lib/git";
 import { secondOf } from "../src/web/components/shell/AppSidebar";
-import { hashOf, parseHash } from "../src/web/lib/hash";
+import { hashOf, parseHash, placeKey } from "../src/web/lib/hash";
 import { resolveRel } from "../src/web/lib/markdown";
 import { NEED_FILTER, navOf, placeFilters } from "../src/web/lib/nav";
 import { Card } from "../src/web/roadmap/Card";
@@ -200,12 +200,17 @@ describe("shell", () => {
 		expect(app).toMatch(/const onOpenChange = \(o: boolean\) => \{\s*setOpen\(o\);\s*if \(o\) setSecond\(null\);/);
 		expect(app).toContain("setOpen(picked.current || second ? false : sidebarOpen(view));");
 		// A row picked in the second bar closes it and keeps the main bar shrunk; the arrival rule does not reopen it.
-		expect(app).toMatch(/const onRow = \(s: Second, feature\?: string\) => \{[^}]*\}\)\);\s*setSecond\(null\);\s*setOpen\(false\);\s*if \(s !== placeSecond\) rowPicked\.current = true;/);
-		expect(bar).toContain('onPick={() => onRow("flight", b.lead)}');
+		expect(app).toMatch(/if \(placeKey\(target\) !== place\) rowPicked\.current = true;/);
+		expect(bar).toContain("onPick={() => onRow({ branch: b.branch, need: null }, b.lead)}");
 		// A branch also opens its lead feature's details panel, once per pick.
 		expect(app).toContain("if (feature) setShow((prev) => ({ id: feature, n: (prev?.n ?? 0) + 1 }));");
 		expect(read("roadmap/Roadmap.tsx")).toMatch(/if \(show && model\?\.byId\.has\(show\.id\)\) openDetails\(show\.id\);[\s\S]*?\}, \[show\?\.n\]\);/);
-		expect(bar).toContain('onPick={() => onRow("needs")}');
+		expect(bar).toContain("onPick={() => onRow({ branch: null, need: x.need })}");
+		// Back from branch B to branch A is a new place, so its second bar opens again (PR #6 review).
+		expect(app).toContain("}, [place]);");
+		expect(placeKey(parseHash("#/roadmap?branch=a")!)).not.toBe(placeKey(parseHash("#/roadmap?branch=b")!));
+		expect(placeKey(parseHash("#/roadmap?need=blocked")!)).not.toBe(placeKey(parseHash("#/roadmap?need=gated")!));
+		expect(placeKey(parseHash("#/roadmap?stage=2")!)).toBeNull();
 	});
 
 	it("names every place with a hash, and reads only the places it names", () => {
@@ -304,6 +309,12 @@ describe("shell", () => {
 		expect(css).not.toMatch(/(^|,)\s*\.shell[\s{,:]/m);
 		expect(read("App.tsx")).toContain('className="app-shell"');
 		expect(css).toContain(".app-shell .arch .fwcols { column-gap: 64px; }");
+	});
+
+	it("drops a doc reply that comes back after Back, Close or a newer pick (PR #6 review)", () => {
+		const dialog = read("components/shell/DocDialog.tsx");
+		expect(dialog).toMatch(/const req = \+\+latest\.current;[\s\S]*?if \(req !== latest\.current\) return;\s*setTrail/);
+		expect(dialog.match(/latest\.current\+\+;/g)).toHaveLength(2);
 	});
 
 	it("resolves doc links against the open doc's folder", () => {
