@@ -292,7 +292,7 @@ dialog.wide { width: min(34rem, calc(100vw - 32px)); }
 .dlg .sub { color: var(--muted-foreground); margin-top: -10px; }
 .dlg .d-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-right: 32px; }
 .dlg .d-head h2 { padding-right: 0; margin-right: 4px; }
-.pill { --gs: var(--muted-foreground); flex: none; display: inline-flex; align-items: center; font-size: 12px; line-height: 16px; padding: 2px 9px; border-radius: 999px; white-space: nowrap; font-weight: 500; color: var(--gs); border: 1px solid color-mix(in oklch, var(--gs) 35%, var(--border)); background: color-mix(in oklch, var(--gs) 10%, transparent); }
+.pill { --gs: var(--muted-foreground); flex: 0 1 auto; min-width: 0; max-width: 100%; display: inline-block; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 16px; padding: 2px 9px; border-radius: 999px; white-space: nowrap; font-weight: 500; color: var(--gs); border: 1px solid color-mix(in oklch, var(--gs) 35%, var(--border)); background: color-mix(in oklch, var(--gs) 10%, transparent); }
 .dlg ul.lines { margin: 0; padding-left: 18px; color: var(--muted-foreground); display: flex; flex-direction: column; gap: 4px; }
 .dlg ul.lines li.warn { color: var(--foreground); }
 .branches { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }

@@ -242,10 +242,12 @@ export function Details({ m, byId, view, open, close }: { m: Model; byId: Map<st
 			</button>
 			<div className="d-head">
 				<h2 id="d-title">{c.title}</h2>
-				<span className="pill" style={{ "--gs": stageTone(m, c.stage) } as CSSProperties}>
+				<span className="pill" title={stageName(m, c.stage)} style={{ "--gs": stageTone(m, c.stage) } as CSSProperties}>
 					{stageName(m, c.stage)}
 				</span>
-				<span className="pill">{c.group}</span>
+				<span className="pill" title={c.group}>
+					{c.group}
+				</span>
 			</div>
 			{c.total ? (
 				<div className="figure-row">
