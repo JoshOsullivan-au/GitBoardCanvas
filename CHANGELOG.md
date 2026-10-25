@@ -4,6 +4,10 @@ Format follows Keep a Changelog. Dates are DD/MM/YYYY.
 
 ## Unreleased
 
+### Fixed
+
+- In an Architecture read path, the Proxy row no longer draws on top of the Server request row. The shell's sidebar made Tailwind emit its `fixed` utility, which turned the rows marked `fixed` into `position: fixed`; they are marked `plain` now, and a build test fails when a board class name is also a Tailwind utility.
+
 ## 0.2.0 (25/10/2026)
 
 ### Changed

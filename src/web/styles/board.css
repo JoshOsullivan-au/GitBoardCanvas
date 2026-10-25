@@ -471,8 +471,8 @@ dialog.wide.doc-mode .dlg { max-height: min(88vh, 980px); }
 .wf .phase .lbl .ph { flex: none; font-size: 14px; color: var(--muted-foreground); }
 .wf .phase .pt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wf .phase .pf { text-align: right; }
-.wf .phase.fixed { cursor: default; }
-.wf .phase.fixed:hover { background: none; }
+.wf .phase.plain { cursor: default; }
+.wf .phase.plain:hover { background: none; }
 .wf .axis { font-size: 11px; color: var(--muted-foreground); padding-bottom: 4px; }
 .wf .ticks { position: relative; height: 14px; }
 .wf .ticks span { position: absolute; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
