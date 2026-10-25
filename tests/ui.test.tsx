@@ -304,6 +304,12 @@ describe("shell", () => {
 		expect(bar).toContain('onPick={() => onPick("architecture")}');
 	});
 
+	it("ships no agent state files in the web source (PR #6 review)", () => {
+		const all = fs.readdirSync(web, { recursive: true, encoding: "utf8" });
+		expect(all.filter((f) => f.split(path.sep).includes(".omc"))).toEqual([]);
+		expect(fs.readFileSync(path.resolve(import.meta.dirname, "../.gitignore"), "utf8")).toMatch(/^\.omc\/$/m);
+	});
+
 	it("keeps its own class names apart from the board's, so no board card picks up shell layout", () => {
 		// .shell is the map's shell endpoint card; no rule may select it on its own.
 		expect(css).not.toMatch(/(^|,)\s*\.shell[\s{,:]/m);
@@ -315,6 +321,12 @@ describe("shell", () => {
 		const dialog = read("components/shell/DocDialog.tsx");
 		expect(dialog).toMatch(/const req = \+\+latest\.current;[\s\S]*?if \(req !== latest\.current\) return;\s*setTrail/);
 		expect(dialog.match(/latest\.current\+\+;/g)).toHaveLength(2);
+	});
+
+	it("lets outside and mail links through, and never runs another scheme (PR #6 review)", () => {
+		const md = read("lib/markdown.tsx");
+		expect(md).toContain("const OUTSIDE = /^(?:https?:)?\\/\\//i;");
+		expect(md).toMatch(/if \(OUTSIDE\.test\(href\) \|\| MAIL\.test\(href\)\) return;\s*e\.preventDefault\(\);\s*if \(SCHEME\.test\(href\)\) return;/);
 	});
 
 	it("resolves doc links against the open doc's folder", () => {

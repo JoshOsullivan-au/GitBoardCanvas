@@ -129,7 +129,7 @@ GitBoard Canvas never pushes, never force-updates a branch, never stashes, never
 ### 2.3 Server
 
 - R10. Listens on 127.0.0.1 and ::1 only. Refuses a request whose Host is not a loopback name with the port (DNS rebinding), and a write whose Origin is not the board's own.
-- R11. Routes: `GET /` (the page), `GET /api/board`, `GET /api/version`, `GET /api/doc?path=` (one markdown file under the lifecycle folder, rendered with raw HTML escaped), `GET /api/architecture` (the measure file, 404 with a plain message when there is none or no `architecture` block), `POST /api/plan`, `POST /api/move`.
+- R11. Routes: `GET /` (the page), `GET /api/board`, `GET /api/version`, `GET /api/doc?path=` (one markdown file under the lifecycle folder, or one of the repo docs below, rendered with raw HTML escaped), `GET /api/docs` (the docs the sidebar offers: the lifecycle folder's README and, when the repo has them, `docs/spec.md`, `docs/configuration.md`, `docs/adr/README.md` and `CHANGELOG.md`; each checked by real path inside the repo), `GET /api/architecture` (the measure file, 404 with a plain message when there is none or no `architecture` block), `POST /api/plan`, `POST /api/move`.
 - R12. Writes take JSON only, at most 16 KB; an oversized body answers 413, bad JSON 400. Errors never carry a stack trace.
 - R13. Reads the main checkout, whichever worktree starts the server.
 - R14. Refreshes the git pipeline in the background every 15 seconds and pull requests at most once a minute. The board version combines the roadmap version and the pipeline hash, so the page refetches only on change.
