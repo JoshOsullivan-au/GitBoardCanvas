@@ -2,11 +2,16 @@
 # SPDX-License-Identifier: MIT
 # Build and test before every commit. Turn on once per clone: git config core.hooksPath .githooks
 # `git commit --no-verify` skips it in an emergency; CI still runs the same check.
+here=$(dirname "$0")
+# Lines and file names this commit adds must not name another project (see .githooks/private-terms). This runs
+# before Git's variables are cleared, so `git commit --only` is checked against the index Git prepared for it.
+patch=$(mktemp)
+trap 'rm -f "$patch"' EXIT
+git diff --cached -U0 --no-ext-diff > "$patch" || { echo "pre-commit: could not read the staged changes; the commit was not made" >&2; exit 1; }
+"$here/added-lines" < "$patch" | "$here/private-terms" "this commit" || { echo "pre-commit: the commit was not made" >&2; exit 1; }
 # Git exports GIT_DIR, GIT_INDEX_FILE and its other repo variables to hooks. The tests make their own temporary repos,
 # so clear them first, or those repos' git would write to this one.
 unset $(git rev-parse --local-env-vars)
-# Lines this commit adds must not name another project (see .githooks/private-terms).
-git diff --cached -U0 | grep '^+' | grep -v '^+++' | "$(dirname "$0")/private-terms" "this commit" || { echo "pre-commit: the commit was not made" >&2; exit 1; }
 echo "pre-commit: npm run check (typecheck, build, test)" >&2
 npm run --silent check >&2 || {
 	echo "pre-commit: npm run check failed; the commit was not made" >&2

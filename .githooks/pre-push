@@ -1,12 +1,22 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Refuse a push whose commits name another project, in an added line or a message (see .githooks/private-terms).
+# Refuse a push whose commits name another project in an added line, a file name or a message
+# (see .githooks/private-terms). Merges are diffed against each parent. A new branch is checked against what the
+# destination remote already has, never what other remotes have. Commits that cannot be read refuse the push.
 here=$(dirname "$0")
+remote=$1
 zero=0000000000000000000000000000000000000000
+text=$(mktemp)
+patch=$(mktemp)
+trap 'rm -f "$text" "$patch"' EXIT
 while read -r _ local_sha _ remote_sha; do
 	[ "$local_sha" = "$zero" ] && continue
-	if [ "$remote_sha" = "$zero" ]; then range="$local_sha --not --remotes"; else range="$remote_sha..$local_sha"; fi
-	# shellcheck disable=SC2086
-	{ git log --format=%B $range; git log -p --format= $range | grep '^+' | grep -v '^+++'; } | "$here/private-terms" "the push" || { echo "pre-push: nothing was pushed" >&2; exit 1; }
+	if [ "$remote_sha" = "$zero" ]; then set -- "$local_sha" --not "--remotes=$remote/*"; else set -- "$remote_sha..$local_sha"; fi
+	if ! git log --format=%B "$@" > "$text" || ! git log -p -m --no-ext-diff --format= "$@" > "$patch"; then
+		echo "pre-push: could not read the commits being pushed (fetch first); nothing was pushed" >&2
+		exit 1
+	fi
+	"$here/added-lines" < "$patch" >> "$text"
+	"$here/private-terms" "the push" < "$text" || { echo "pre-push: nothing was pushed" >&2; exit 1; }
 done
 exit 0
