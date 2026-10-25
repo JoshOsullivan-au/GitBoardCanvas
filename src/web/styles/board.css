@@ -158,7 +158,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 }
 
 /* Board: stage columns on a dotted surface, a group of cards per column, glass cards, links traced on hover */
-.fwcols { position: relative; display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(228px, 1fr)); gap: 12px; min-width: calc(var(--cols, 5) * 240px - 12px); overflow: clip; }
+/* The 12px ring around the columns is where link lines pass a column they cannot cross between its rows. */
+.fwcols { position: relative; display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(228px, 1fr)); gap: 12px; margin: -12px; padding: 12px; min-width: calc(var(--cols, 5) * 240px + 12px); overflow: clip; }
 .fwcol { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 8px 8px 20px; min-width: 0; border-radius: 18px; }
 /* the column is glass-ui clear glass: the backdrop shows through, nothing else is drawn */
 .fwcol.now { --lg-tint: var(--arrow); --lg-tint-amt: 7%; }
