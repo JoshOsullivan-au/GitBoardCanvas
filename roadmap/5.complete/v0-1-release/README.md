@@ -39,4 +39,4 @@ Get GitBoard Canvas 0.1.0 out: documents and templates in place, a clean-repo ru
 ## Open decisions
 
 - Package name on npm: settled 22/10/2026, `gitboard-canvas` (command `gitboard`).
-- CI matrix: Node 22.12 only, or Node 22.12 plus the current release?
+- Test CI on Node 22.12 only, or on the current release too?
