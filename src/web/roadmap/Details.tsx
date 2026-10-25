@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 // A feature's details panel, and its phase files rendered in place: roadmap links open in place, Back returns.
-import { Fragment, type MouseEvent, useLayoutEffect, useRef } from "react";
+import { Fragment, useRef } from "react";
 
 import { ddmm, plural } from "../lib/format";
 import { GIT_STEPS, prStates } from "../lib/git";
-import { Icon, iconSvg } from "../lib/icon";
+import { Icon } from "../lib/icon";
+import { Markdown } from "../lib/markdown";
 import { cardState, type Feature, groupIcon, isDone, type Model, stageName } from "./model";
 
 export type Crumb = { path: string; label: string; phaseIndex: number | null };
@@ -195,52 +196,9 @@ function Relations({ m, byId, c, open }: { m: Model; byId: Map<string, Feature>;
 	);
 }
 
-function resolveRel(fromFile: string, href: string): string {
-	const parts = fromFile.split("/");
-	parts.pop();
-	for (const seg of href.split("/")) {
-		if (seg === "." || seg === "") continue;
-		if (seg === "..") parts.pop();
-		else parts.push(seg);
-	}
-	return parts.join("/");
-}
-
 function Doc({ m, c, view, open, close }: { m: Model; c: Feature; view: Extract<DetailsView, { kind: "doc" }>; open: Open; close: () => void }) {
-	const article = useRef<HTMLElement>(null);
 	const back = useRef<HTMLButtonElement>(null);
-	useLayoutEffect(() => {
-		const md = article.current!;
-		// Task boxes as Phosphor glyphs, not the browser's checkbox.
-		md.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((box) => {
-			const mark = document.createElement("span");
-			mark.className = `tick${box.checked ? " on" : ""}`;
-			mark.setAttribute("role", "img");
-			mark.setAttribute("aria-label", box.checked ? "Done" : "Not done");
-			mark.innerHTML = iconSvg(box.checked ? "CheckSquare" : "Square");
-			box.replaceWith(mark);
-		});
-		md.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
-			if (/^https?:/i.test(a.getAttribute("href")!)) {
-				a.target = "_blank";
-				a.rel = "noopener noreferrer";
-			}
-		});
-		back.current?.focus();
-	}, [view.html]);
-	const onClick = (e: MouseEvent<HTMLElement>) => {
-		const a = (e.target as Element).closest("a[href]");
-		if (!a) return;
-		const href = a.getAttribute("href")!;
-		if (/^https?:/i.test(href)) return;
-		e.preventDefault();
-		if (href.startsWith("#")) {
-			article.current?.querySelector(`[id="${CSS.escape(href.slice(1))}"]`)?.scrollIntoView();
-			return;
-		}
-		let target = decodeURI(href.split("#")[0]);
-		if (target.endsWith("/")) target += "README.md";
-		const next = resolveRel(view.path, target);
+	const onLink = (next: string) => {
 		if (!next.startsWith(`${m.roadmapDir}/`) || !next.endsWith(".md")) return;
 		open.doc(c.id, next, next.split("/").slice(-2).join("/"), null, [...view.trail, { path: view.path, label: view.label, phaseIndex: view.phaseIndex }]);
 	};
@@ -265,8 +223,7 @@ function Doc({ m, c, view, open, close }: { m: Model; c: Feature; view: Extract<
 					{c.title} · {view.label}
 				</span>
 			</div>
-			{/* The server renders the markdown with raw HTML escaped (R11). */}
-			<article className="md" tabIndex={0} ref={article} onClick={onClick} dangerouslySetInnerHTML={{ __html: view.html }} />
+			<Markdown html={view.html} path={view.path} onLink={onLink} onShown={() => back.current?.focus()} />
 		</div>
 	);
 }

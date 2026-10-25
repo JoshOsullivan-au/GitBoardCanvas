@@ -72,6 +72,7 @@ describe("board server", () => {
 		expect(res.status).toBe(200);
 		expect(res.body).not.toContain("__ICONS__");
 		expect(res.body).toContain("GitBoard Canvas");
+		expect(res.body).toContain(`const REPO = ${JSON.stringify(path.basename(dir))};`);
 	});
 
 	it("serves the board", async () => {
@@ -121,6 +122,31 @@ describe("board server", () => {
 		expect(ok.body).not.toContain("<script>");
 		for (const p of ["secret.md", "roadmap/../secret.md", "roadmap/3.open/../../secret.md", "/etc/passwd"]) {
 			expect((await request(`/api/doc?path=${encodeURIComponent(p)}`)).status).toBe(404);
+		}
+	});
+
+	it("lists and opens the repo docs the sidebar names, only those present, and none that leave the repo", async () => {
+		const outside = fs.mkdtempSync(path.join(os.tmpdir(), "gitboard-outside-"));
+		fs.writeFileSync(path.join(outside, "CHANGELOG.md"), "# not this repo\n");
+		fs.mkdirSync(path.join(dir, "docs"), { recursive: true });
+		fs.writeFileSync(path.join(dir, "docs/spec.md"), "# Spec\n");
+		fs.writeFileSync(path.join(dir, "roadmap/README.md"), "# Roadmap\n");
+		fs.symlinkSync(path.join(outside, "CHANGELOG.md"), path.join(dir, "CHANGELOG.md"));
+		try {
+			const { docs } = JSON.parse((await request("/api/docs")).body) as { docs: { label: string; path: string }[] };
+			expect(docs).toEqual([
+				{ label: "Lifecycle guide", path: "roadmap/README.md" },
+				{ label: "Spec", path: "docs/spec.md" },
+			]);
+			expect(JSON.parse((await request(`/api/doc?path=${encodeURIComponent("docs/spec.md")}`)).body).html).toContain("Spec");
+			for (const p of ["CHANGELOG.md", "docs/configuration.md", "docs/other.md", "README.md"]) {
+				expect((await request(`/api/doc?path=${encodeURIComponent(p)}`)).status, p).toBe(404);
+			}
+		} finally {
+			fs.rmSync(path.join(dir, "docs"), { recursive: true });
+			fs.rmSync(path.join(dir, "roadmap/README.md"));
+			fs.rmSync(path.join(dir, "CHANGELOG.md"));
+			fs.rmSync(outside, { recursive: true });
 		}
 	});
 });

@@ -7,6 +7,7 @@ import {
 	type FocusEvent,
 	type HTMLAttributes,
 	type KeyboardEvent,
+	memo,
 	type PointerEvent,
 	type ReactNode,
 	type RefObject,
@@ -21,6 +22,8 @@ import { createPortal } from "react-dom";
 
 import type { Board, MovePlan } from "../../types.js";
 import { api } from "../lib/api";
+import { type Route, replaceRoute } from "../lib/hash";
+import { placeFilters } from "../lib/nav";
 import { ddmm, firstLine, plural } from "../lib/format";
 import { Icon } from "../lib/icon";
 import { drawRoutes, type Link } from "../lib/routes";
@@ -127,10 +130,29 @@ function Loading() {
 	);
 }
 
-export function Roadmap({ tools }: { tools: HTMLElement | null }) {
+/** What the shell shows of the Roadmap: its read model for the sidebar's counts, when git was last read, and whether
+ * the last version poll failed (the server is not answering). */
+export type RoadmapStatus = { model: Model | null; readAt: number | null; failed: boolean };
+
+function RoadmapView({
+	tools,
+	search,
+	route,
+	onStatus,
+	show,
+}: {
+	tools: HTMLElement | null;
+	search: HTMLElement | null;
+	route: Route;
+	onStatus: (s: RoadmapStatus) => void;
+	/** A feature the shell asks to open in the details panel; `n` counts the asks, so the same feature opens again. */
+	show: { id: string; n: number } | null;
+}) {
 	const { toast, say } = usePage();
 	const [model, setModel] = useState<Model | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [readAt, setReadAt] = useState<number | null>(null);
+	const [failed, setFailed] = useState(false);
 	const [saved] = useState(() => load<Saved>("gitboard-view"));
 	const [collapsed, setCollapsed] = useState(() => new Set(saved.collapsed ?? []));
 	const [filters, setFilters] = useState<Filters>(() => {
@@ -175,15 +197,20 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 	const persist = (next: { collapsed?: Set<string>; filters?: Filters; order?: string }) =>
 		save("gitboard-view", {
 			collapsed: [...(next.collapsed ?? collapsed)],
-			filters: Object.fromEntries(FILTER_GROUPS.map((g) => [g, [...(next.filters ?? filters)[g]]])),
+			// A "Needs you" place's filter is not the person's: save the filters it stands in for.
+			filters: Object.fromEntries(FILTER_GROUPS.map((g) => [g, [...(next.filters ?? ownFilters.current ?? filters)[g]]])),
 			order: next.order ?? order,
 		});
 
 	/* ---- server ---- */
+	const failedRead = useRef(true);
 	const refresh = useCallback(async () => {
+		failedRead.current = true;
 		const data = await api<Board>("/api/board");
+		failedRead.current = false;
 		version.current = data.version;
 		setModel(buildModel(data));
+		setReadAt(data.readAt || null);
 		setLoading(false);
 	}, []);
 	useEffect(() => {
@@ -193,15 +220,19 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 		const poll = async () => {
 			try {
 				const { version: v } = await api<{ version: string }>("/api/version");
+				// Answering is not enough: the board counts as read only once a read it needs has landed.
 				if (v !== version.current && quiet()) await refresh();
+				setFailed(failedRead.current);
 			} catch {
-				/* the next tick tries again */
+				/* the next tick tries again; until then the shell says when the board was last read */
+				setFailed(true);
 			}
 			if (!stop) timer = setTimeout(poll, POLL_MS);
 		};
 		refresh()
 			.catch((error: Error) => {
 				setLoading(false);
+				setFailed(true);
 				toast(`Could not read the roadmap. ${firstLine(error.message)}`, { err: true });
 			})
 			.finally(() => {
@@ -213,11 +244,45 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 		};
 	}, [refresh, toast]);
 
+	useEffect(() => onStatus({ model, readAt, failed }), [model, readAt, failed, onStatus]);
+
+	/* ---- the sidebar's places: a "Needs you" item shows only its one filter while you are there, and leaving puts the
+	   person's own filters back; a stage scrolls into view ---- */
+	const ownFilters = useRef<Filters | null>(null);
+	const searchInput = useRef<HTMLInputElement>(null);
+	useEffect(() => {
+		const next = placeFilters(route.need, filters, ownFilters.current);
+		ownFilters.current = next.own;
+		if (next.shown !== filters) {
+			noFlip();
+			setFilters(next.shown);
+		}
+		// A "Needs you" count is what the place shows: a search left over from before would hide some of it.
+		if (route.need && searchInput.current?.value) {
+			searchInput.current.value = "";
+			setQ("");
+		}
+		// Only a change of place sets the filters.
+	}, [route.need]);
+	/** The person changed the filters: they are theirs now, kept, and the "Needs you" place is left. */
+	const ownChange = (next: Filters) => {
+		ownFilters.current = null;
+		noFlip();
+		setFilters(next);
+		persist({ filters: next });
+		if (route.need) replaceRoute({ view: "roadmap" });
+	};
+	useEffect(() => {
+		if (!route.stage || loading) return;
+		const col = boardEl.current?.querySelector(`.fwcol[data-stage="${route.stage}"]`);
+		col?.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "nearest", inline: "start" });
+	}, [route.stage, loading]);
+
 	/* ---- what shows ---- */
 	const opts = useMemo(() => (model ? filterOptions(model) : null), [model]);
 	const cards = useMemo(() => (model ? placed(model, held) : []), [model, held]);
 	const byId = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards]);
-	const view: View | null = opts && { q, filters, opts, order, pinned: drag?.id ?? grab?.id ?? null };
+	const view: View | null = opts && { q, filters, opts, order, pinned: drag?.id ?? grab?.id ?? null, branch: route.branch };
 	const traced = trace ? (byId.get(trace) ?? null) : null;
 	const groupKeys = () =>
 		model && view ? model.stages.flatMap((s) => model.groups.filter((g) => cellCards(cards, view, g, s.id).length).map((g) => `${s.id}|${g}`)) : [];
@@ -249,9 +314,11 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 		drawRoutes(cols, links);
 	}, [model]);
 	useLayoutEffect(() => drawLinks());
+	/* The window or the sidebar beside the board changed its width: columns that fill it moved. */
 	useEffect(() => {
-		addEventListener("resize", drawLinks);
-		return () => removeEventListener("resize", drawLinks);
+		const ro = new ResizeObserver(() => drawLinks());
+		if (boardEl.current) ro.observe(boardEl.current);
+		return () => ro.disconnect();
 	}, [drawLinks]);
 
 	/** Focus a card without tracing it: re-renders and closing dialogs hand focus back, the person did not move it. */
@@ -271,6 +338,10 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 		setDetails({ kind: "card", id });
 		setDetailsOpen(true);
 	};
+	useEffect(() => {
+		if (show && model?.byId.has(show.id)) openDetails(show.id);
+		// One ask, one open: a new model alone does not reopen the panel.
+	}, [show?.n]);
 	const openDoc = async (id: string, path: string, label: string, phaseIndex: number | null, trail: Crumb[] = []) => {
 		if (!detailsOpen) openDetails(id);
 		let doc: { html: string };
@@ -530,15 +601,10 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 	const toggleFilter = (g: (typeof FILTER_GROUPS)[number], v: string) => {
 		const next = { ...filters, [g]: new Set(filters[g]) };
 		next[g].has(v) ? next[g].delete(v) : next[g].add(v);
-		noFlip();
-		setFilters(next);
-		persist({ filters: next });
+		ownChange(next);
 	};
 	const clearFilters = () => {
-		const next = emptyFilters();
-		noFlip();
-		setFilters(next);
-		persist({ filters: next });
+		ownChange(emptyFilters());
 	};
 
 	/* ---- render ---- */
@@ -554,7 +620,12 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 					const n = cards.filter((c) => c.stage === s.id && visible(view, c)).length;
 					const groups = model.groups.filter((group) => cellCards(cards, view, group, s.id).length || (drag?.active && drag.group === group));
 					return (
-						<section key={s.id} className={`fwcol lg lg-clear${model.stages.length > 2 && s.id === last - 1 ? " now" : ""}`} aria-label={`${s.id} ${s.name}`}>
+						<section
+							key={s.id}
+							className={`fwcol lg lg-clear${model.stages.length > 2 && s.id === last - 1 ? " now" : ""}`}
+							aria-label={`${s.id} ${s.name}`}
+							data-stage={s.id}
+						>
 							<header className="fwsh lg lg-regular">
 								<div className="t">
 									<span className="sn">{s.id}</span>
@@ -617,8 +688,36 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 		);
 	}
 
+	const searchBox = (
+		<label className="search">
+			<span>
+				<Icon name="MagnifyingGlass" />
+			</span>
+			<input
+				id="q"
+				ref={searchInput}
+				type="search"
+				placeholder="Search"
+				aria-label="Search features"
+				autoComplete="off"
+				onChange={(e) => {
+					focusId.current = null;
+					noFlip();
+					setQ(e.target.value.trim());
+				}}
+			/>
+		</label>
+	);
+
 	const toolbar = (
 		<>
+			{route.branch ? (
+				<a className="btn" id="branchChip" href="#/roadmap" title="Show every feature">
+					<Icon name="GitBranch" />
+					<span>{route.branch}</span>
+					<Icon name="X" />
+				</a>
+			) : null}
 			<div className="pop-wrap">
 				<button type="button" className="btn" id="filterBtn" ref={filterBtn} aria-expanded={panel} aria-controls="filterPanel" onClick={() => setPanel(!panel)}>
 					<span>
@@ -683,23 +782,6 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 					<Icon name="CaretDown" />
 				</span>
 			</label>
-			<label className="search">
-				<span>
-					<Icon name="MagnifyingGlass" />
-				</span>
-				<input
-					id="q"
-					type="search"
-					placeholder="Search"
-					aria-label="Search features"
-					autoComplete="off"
-					onChange={(e) => {
-						focusId.current = null;
-						noFlip();
-						setQ(e.target.value.trim());
-					}}
-				/>
-			</label>
 			<button
 				type="button"
 				className="btn"
@@ -719,6 +801,7 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 	return (
 		<>
 			{tools ? createPortal(toolbar, tools) : null}
+			{search ? createPortal(searchBox, search) : null}
 			<Surface el={boardEl} flip={flip} onUpdated={onUpdated} handlers={handlers}>
 				{surface}
 			</Surface>
@@ -747,3 +830,6 @@ export function Roadmap({ tools }: { tools: HTMLElement | null }) {
 		</>
 	);
 }
+
+/* The shell re-renders on its own state (the sidebar, the theme, the docs list); the board only on its own props. */
+export const Roadmap = memo(RoadmapView);

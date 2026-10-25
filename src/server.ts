@@ -23,6 +23,14 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const UI = fs.existsSync(path.join(HERE, "ui", "board.html")) ? path.join(HERE, "ui") : path.join(HERE, "..", "dist", "ui");
 const MAX_BODY = 16 * 1024;
 
+/** Repo docs the sidebar's Docs group may open beside the lifecycle folder: these paths and no others. */
+export const REPO_DOCS: { label: string; path: string }[] = [
+	{ label: "Spec", path: "docs/spec.md" },
+	{ label: "Configuration", path: "docs/configuration.md" },
+	{ label: "Architecture decisions", path: "docs/adr/README.md" },
+	{ label: "Changelog", path: "CHANGELOG.md" },
+];
+
 export type BoardServerOptions = {
 	/** The main checkout. */
 	root: string;
@@ -82,12 +90,15 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 	const log = opts.log ?? ((line: string) => console.error(`gitboard: ${line}`));
 	const hosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`]);
 	const lifecycle = path.join(root, config.roadmapDir);
+	/* The sidebar header names the repo by its folder; JSON with "<" escaped, so it cannot close the script. */
+	const repo = JSON.stringify(path.basename(path.resolve(root))).replace(/</g, "\\u003c");
 	const icons = JSON.stringify(JSON.parse(fs.readFileSync(path.join(UI, "icons.json"), "utf8"))).replace(/</g, "\\u003c");
 	const page = () =>
 		fs
 			.readFileSync(path.join(UI, "board.html"), "utf8")
 			.replace("__ICONS__", () => icons)
-			.replace("__ARCHITECTURE__", String(config.architecture !== null));
+			.replace("__ARCHITECTURE__", String(config.architecture !== null))
+			.replace("__REPO__", () => repo);
 	const markdown = new Marked({ gfm: true, renderer: { html: ({ text }) => escapeHtml(text) } });
 
 	// Git pipeline across every worktree: slow on big repos, so it refreshes in the background and after a move,
@@ -111,21 +122,32 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 	const timer = opts.refreshMs === 0 ? null : setInterval(refresh, opts.refreshMs ?? 15_000);
 	timer?.unref();
 
-	/** A markdown file under the lifecycle folder by repo-relative path, or null when the path leaves it. */
-	function doc(rel: string | null): { path: string; html: string } | null {
-		const prefix = `${config.roadmapDir}/`;
-		if (typeof rel !== "string" || !rel.startsWith(prefix) || !rel.endsWith(".md")) return null;
-		if (path.posix.normalize(rel) !== rel || rel.includes("\\")) return null;
-		const abs = path.join(root, rel);
-		if (!abs.startsWith(lifecycle + path.sep)) return null;
-		let real: string;
+	/** The real path of repo-relative `rel` when it is a file inside `dir`, else null (missing, or a link out of it). */
+	function inside(rel: string, dir: string): string | null {
 		try {
-			real = fs.realpathSync(abs);
+			const real = fs.realpathSync(path.join(root, rel));
+			return real.startsWith(fs.realpathSync(dir) + path.sep) && fs.statSync(real).isFile() ? real : null;
 		} catch {
 			return null;
 		}
-		if (!real.startsWith(fs.realpathSync(lifecycle) + path.sep)) return null;
+	}
+
+	/**
+	 * A markdown file by repo-relative path: one under the lifecycle folder, or one of REPO_DOCS. Null for any other
+	 * path, and for one that resolves outside the folder or the repo.
+	 */
+	function doc(rel: string | null): { path: string; html: string } | null {
+		if (typeof rel !== "string" || !rel.endsWith(".md")) return null;
+		if (path.posix.normalize(rel) !== rel || rel.includes("\\")) return null;
+		const real = rel.startsWith(`${config.roadmapDir}/`) ? inside(rel, lifecycle) : REPO_DOCS.some((d) => d.path === rel) ? inside(rel, root) : null;
+		if (!real) return null;
 		return { path: rel, html: markdown.parse(fs.readFileSync(real, "utf8")) as string };
+	}
+
+	/** The docs the sidebar lists: the lifecycle folder's README, then the REPO_DOCS this repo has. */
+	function docs(): { label: string; path: string }[] {
+		const guide = { label: "Lifecycle guide", path: `${config.roadmapDir}/README.md` };
+		return [guide, ...REPO_DOCS].filter((d) => inside(d.path, d === guide ? lifecycle : root));
 	}
 
 	/**
@@ -168,8 +190,9 @@ export function createBoardServer(opts: BoardServerOptions): BoardServer {
 			}
 			if (req.method === "GET" && url.pathname === "/api/doc") {
 				const d = doc(url.searchParams.get("path"));
-				return d ? send(res, 200, d) : send(res, 404, { error: "That file is not in the lifecycle folder." });
+				return d ? send(res, 200, d) : send(res, 404, { error: "That file is not one the board serves." });
 			}
+			if (req.method === "GET" && url.pathname === "/api/docs") return send(res, 200, { docs: docs() });
 			if (req.method === "GET" && url.pathname === "/api/architecture") {
 				const a = architecture();
 				return "body" in a ? send(res, 200, a.body) : send(res, a.status, { error: a.error });

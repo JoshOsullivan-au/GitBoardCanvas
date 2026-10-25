@@ -99,9 +99,6 @@ button { font: inherit; color: inherit; }
 
 .icon-btn:focus-visible, .btn:focus-visible, .search input:focus-visible, .disc:focus-visible, .x:focus-visible { outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent); outline-offset: 1px; }
 
-.page { height: 100vh; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.ph-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 28px var(--gutter-x) 16px; }
-.ph-head h1 { margin: 0; flex: none; white-space: nowrap; font: 600 30px/1.2 var(--font-heading); letter-spacing: -0.025em; }
 .tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
 .tools > * { flex: none; }
 .tools > .search { flex: 0 1 auto; min-width: 0; }
@@ -167,6 +164,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; }
 .fwsh .t { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; font: 600 18px/1.2 var(--font-heading); }
 .fwsh .sn { font: 500 12px/1 var(--font-sans); color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 .fwsh .cnt { font-size: 12.5px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+/* Once the board scrolls, cards pass under the sticky column headers: the headers turn more opaque so their titles stay
+   readable. */
+.scroll[data-scrolled] .fwsh.lg { --lg-base: color-mix(in oklab, var(--background) 88%, transparent); }
 .pill { font-size: 11.5px; color: var(--muted-foreground); border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; background: var(--card); }
 .grp { display: flex; flex-direction: column; }
 .gh { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: 0; background: none; cursor: pointer; text-align: left; font-weight: 500; font-size: 13px; color: var(--muted-foreground); border-radius: 8px; }
@@ -432,13 +432,8 @@ dialog.doc-mode { width: min(48rem, calc(100vw - 32px)); }
 /* Fixed column widths and wide gutters: every card in a column is the same width, and the links run in the empty corridors between columns */
 .arch .fwcols { grid-template-columns: 216px 292px 292px 292px; column-gap: 88px; justify-content: start; min-width: max-content; overflow: visible; }
 .arch .fwcol .card { width: 100%; }
-/* The title and tabs keep their width; each tab's tool bar shrinks (its search box gives way), and the header wraps
-   when even that cannot fit, so a tool never sits on top of a tab. */
-.ph-head:has(.ph-left) { flex-wrap: wrap; }
-.ph-left { display: flex; align-items: flex-end; gap: 16px; flex: none; }
-.tools > .tools { flex: 0 1 auto; min-width: 0; }
-.tabs { display: flex; gap: 6px; padding-bottom: 3px; }
-.tabs .opt { height: 30px; padding: 0 12px; font-weight: 500; }
+/* With the sidebar beside it the map's corridors narrow to 64px, so the map fits beside the icon sidebar at 1440. */
+.app-shell .arch .fwcols { column-gap: 64px; }
 .arch .card .chips { max-width: calc(100% - 20px); }
 .arch .card .av-b .ph, .arch .card .av-b.dt { flex: none; }
 .arch .card .av-b .t { overflow: hidden; text-overflow: ellipsis; }
@@ -490,6 +485,63 @@ dialog.wide.doc-mode .dlg { max-height: min(88vh, 980px); }
 .col-grip[data-col="ms"] { left: calc(100% - var(--wf-ms) - 5px); }
 .wf[data-dragging] { user-select: none; cursor: col-resize; }
 .phase:focus-visible { outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent); outline-offset: -2px; }
+
+/* ---- The shell: the sidebar (shadcn Sidebar), the top bar and the view header, on the board's tokens. Its wrapper
+   is .app-shell because .shell is the map's shell endpoint card. ---- */
+.app-shell { height: 100svh; }
+.app-shell .app-inset { min-width: 0; min-height: 0; height: 100svh; overflow: hidden; background: var(--backdrop); outline: none; }
+@media (min-width: 768px) { .app-shell .app-inset { height: calc(100svh - 16px); } }
+.tb { position: sticky; top: 0; z-index: 5; flex: none; display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 12px; border-bottom: 1px solid var(--border); background: color-mix(in oklch, var(--background) 82%, transparent); backdrop-filter: blur(12px); }
+.tb-crumbs { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.tb-crumbs ol { flex-wrap: nowrap; }
+.tb-crumbs li { white-space: nowrap; }
+.tb-crumbs li:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tb-nav { flex: none; }
+.tb-nav .ph { font-size: 12px; }
+.tb-search, .tb-slot { display: flex; align-items: center; min-width: 0; }
+.tb-search { flex: 0 1 auto; }
+.vh { flex: none; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 20px var(--gutter-x) 4px; }
+.vh-left { display: flex; align-items: baseline; gap: 12px; flex: none; min-width: 0; }
+.vh h1 { margin: 0; white-space: nowrap; font: 600 24px/1.2 var(--font-heading); letter-spacing: -0.02em; }
+.vh-fact { color: var(--muted-foreground); white-space: nowrap; }
+.vh .tools { flex: 0 1 auto; flex-wrap: wrap; }
+#branchChip { text-decoration: none; color: var(--foreground); }
+#branchChip .ph:last-child { color: var(--muted-foreground); }
+
+/* Items 13px, badges 12px with tabular figures, icons 16px; the board's .ph sizes by font size, unlayered. */
+.app-shell [data-sidebar="menu-button"], .app-shell [data-sidebar="menu-sub-button"] { font-size: 13px; }
+.app-shell [data-sidebar="group-label"] { font-size: 12px; color: var(--muted-foreground); }
+.app-shell [data-sidebar] .ph, [data-slot="dropdown-menu-content"] .ph { font-size: 16px; }
+.app-shell [data-sidebar="menu-item"] { margin-bottom: 4px; }
+.app-shell [data-sidebar="menu-item"]:last-child { margin-bottom: 0; }
+.sb-mark { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-md); background: var(--sidebar-primary); color: var(--sidebar-primary-foreground); font-weight: 600; }
+.app-shell [data-sidebar="menu-badge"] { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+.sb-repo, .sb-repo:hover, .sb-repo:active { cursor: default; background: none; }
+.sb-name { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.sb-name b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-name span { font-size: 12px; color: var(--muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell [data-sidebar="menu-badge"] { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+/* A label gives way to its count and caret, which keep their place at the right. */
+.app-shell [data-sidebar="menu-button"] > span:not(.sb-n), .app-shell [data-sidebar="menu-sub-button"] > span:not(.sb-n) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-n { flex: none; margin-left: auto; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+.sb-caret { flex: none; margin-left: auto; color: var(--muted-foreground); }
+.sb-n + .sb-caret { margin-left: 0; }
+.sb-empty { display: block; margin: 0; padding: 4px 8px; font-size: 12px; color: var(--muted-foreground); }
+/* The second bar: Work in flight or Needs you, beside the main bar while that one is shrunk to icons. */
+.sb-second { flex: none; width: 14rem; height: 100svh; padding: 8px 0; }
+.sb-second-head { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 8px 4px 16px; }
+.sb-second-head > div { display: flex; flex-direction: column; min-width: 0; }
+.sb-second-head b { font-weight: 600; }
+.sb-second-head span { min-height: 18px; font-size: 12px; color: var(--muted-foreground); }
+.sb-att .ph, .sb-status.sb-att { color: var(--tone-att); }
+.sb-status, .sb-status:hover, .sb-status:active { cursor: default; background: none; color: var(--muted-foreground); }
+.skip { position: fixed; left: 8px; top: -48px; z-index: 100; padding: 8px 12px; border-radius: var(--radius-lg); background: var(--primary); color: var(--primary-foreground); text-decoration: none; }
+.skip:focus { top: 8px; }
+/* The sidebar and the panel move on the board's spring; reduced motion makes the toggle instant. */
+[data-slot="sidebar-gap"], [data-slot="sidebar-container"], [data-slot="sidebar-inset"] { transition-duration: 420ms; transition-timing-function: var(--spring); }
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="sidebar-gap"], [data-slot="sidebar-container"], [data-slot="sidebar-inset"] { transition: none; }
+}
 
 /* Tailwind's preflight, in its base layer, resets what the plain page left to the browser. Put those back. */
 dialog { margin: auto; }

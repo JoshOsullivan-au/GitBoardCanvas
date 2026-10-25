@@ -6,10 +6,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GitBoard Canvas</title>
 <script>
-/* Filled by the board server: the icon set, and true when gitboard.config.json has an architecture block. */
+/* Filled by the board server: the icon set, true when gitboard.config.json has an architecture block, and the repo's folder name. */
 const ICONS = __ICONS__;
 const ARCHITECTURE = __ARCHITECTURE__;
-window.GITBOARD = { icons: ICONS, architecture: ARCHITECTURE };
+const REPO = __REPO__;
+window.GITBOARD = { icons: ICONS, architecture: ARCHITECTURE, repo: REPO };
 /* The viewer's theme before the first paint. */
 try {
   const saved = localStorage.getItem("gitboard-theme");

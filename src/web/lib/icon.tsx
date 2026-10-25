@@ -4,11 +4,11 @@ import { icons } from "./boot";
 
 export const hasIcon = (name: string | null | undefined): name is string => Boolean(name && Object.hasOwn(icons(), name));
 
-export function Icon({ name }: { name: string }) {
+export function Icon({ name, className }: { name: string; className?: string }) {
 	const p = icons()[name];
 	if (!p) return null;
 	return (
-		<svg className="ph" viewBox="0 0 256 256" aria-hidden="true">
+		<svg className={className ? `ph ${className}` : "ph"} viewBox="0 0 256 256" aria-hidden="true">
 			<path className="w-light" d={p.light[0]} />
 			<path className="w-regular" d={p.regular[0]} />
 		</svg>

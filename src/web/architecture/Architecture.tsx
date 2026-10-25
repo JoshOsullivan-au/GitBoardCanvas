@@ -2,7 +2,7 @@
 // The Architecture tab: every route the host serves, on the path request, pages, database, cache and providers, each
 // with its warm server time against the budget, its calls and their waves (data: gitboard measure). Hover a route to
 // trace its calls; click a card for its read path.
-import { type ChangeEvent, type CSSProperties, type MouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type CSSProperties, memo, type MouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { ArchitectureMap, Sample } from "../../architecture/measure.js";
@@ -559,7 +559,20 @@ function DetailsBody({ b, L, v, timeline }: { b: Built; L: Lookups; v: DView; ti
 
 type SavedView = { order: string; collapsed: string[] };
 
-export function Architecture({ active, tools }: { active: boolean; tools: HTMLElement | null }) {
+/** What the shell shows of the map: how many pages it measured, or null while there is no measure to draw. */
+export type ArchitectureStatus = { pages: number | null };
+
+function ArchitectureView({
+	active,
+	tools,
+	search,
+	onStatus,
+}: {
+	active: boolean;
+	tools: HTMLElement | null;
+	search: HTMLElement | null;
+	onStatus: (s: ArchitectureStatus) => void;
+}) {
 	const [built, setBuilt] = useState<Built | null>(null);
 	/* Why the tab has nothing to draw: the server's reason (no measure yet, a file that is not a measure), or no answer. */
 	const [problem, setProblem] = useState<string | null>(null);
@@ -576,9 +589,11 @@ export function Architecture({ active, tools }: { active: boolean; tools: HTMLEl
 
 	const persist = (next: Partial<SavedView>) => save("gitboard-architecture-view", { order: next.order ?? order, collapsed: next.collapsed ?? [...collapsed] });
 
-	/* Read the measure each time the tab shows. */
+	/* Read the measure once for the sidebar's count, and again each time the map shows. */
+	const shown = useRef(false);
 	useEffect(() => {
-		if (!active) return;
+		if (!active && shown.current) return;
+		shown.current = true;
 		let live = true;
 		(async () => {
 			const res = await fetch("/api/architecture", { cache: "no-store" }).catch(() => null);
@@ -602,6 +617,7 @@ export function Architecture({ active, tools }: { active: boolean; tools: HTMLEl
 	}, [active]);
 
 	const L = useMemo(() => (built ? lookups(built.map) : null), [built]);
+	useEffect(() => onStatus({ pages: built && !problem ? built.map.routes.length : null }), [built, problem, onStatus]);
 
 	/* Links from a traced route to every endpoint it calls, drawn by the board's own router. The page's own calls are
 	   solid with an arrowhead (blk), the shell's calls dotted (lnk). */
@@ -623,8 +639,9 @@ export function Architecture({ active, tools }: { active: boolean; tools: HTMLEl
 	}, [built, trace]);
 	useLayoutEffect(() => links());
 	useEffect(() => {
-		addEventListener("resize", links);
-		return () => removeEventListener("resize", links);
+		const ro = new ResizeObserver(() => links());
+		if (boardEl.current) ro.observe(boardEl.current);
+		return () => ro.disconnect();
 	}, [links]);
 
 	const openDetails = (v: DView, push = true) => {
@@ -737,6 +754,25 @@ export function Architecture({ active, tools }: { active: boolean; tools: HTMLEl
 		if (row) activate(row);
 	};
 
+	const searchBox = (
+		<label className="search">
+			<span>
+				<Icon name="MagnifyingGlass" />
+			</span>
+			<input
+				id="archQ"
+				type="search"
+				placeholder="Search"
+				aria-label="Search routes and calls"
+				autoComplete="off"
+				onChange={(e) => {
+					setQ(e.target.value.trim());
+					setTrace(null);
+				}}
+			/>
+		</label>
+	);
+
 	const toolbar = (
 		<>
 			<span className="pill" id="archWhen" title={built ? `${built.map.deployment ?? "Deployment Missing"} · warm request of two loads per route` : undefined}>
@@ -765,22 +801,6 @@ export function Architecture({ active, tools }: { active: boolean; tools: HTMLEl
 					<Icon name="CaretDown" />
 				</span>
 			</label>
-			<label className="search">
-				<span>
-					<Icon name="MagnifyingGlass" />
-				</span>
-				<input
-					id="archQ"
-					type="search"
-					placeholder="Search"
-					aria-label="Search routes and calls"
-					autoComplete="off"
-					onChange={(e) => {
-						setQ(e.target.value.trim());
-						setTrace(null);
-					}}
-				/>
-			</label>
 			<button
 				type="button"
 				className="btn"
@@ -802,6 +822,7 @@ export function Architecture({ active, tools }: { active: boolean; tools: HTMLEl
 	return (
 		<>
 			{tools ? createPortal(toolbar, tools) : null}
+			{search ? createPortal(searchBox, search) : null}
 			<div
 				className="board arch"
 				id="arch"
@@ -860,3 +881,5 @@ export function Architecture({ active, tools }: { active: boolean; tools: HTMLEl
 		</>
 	);
 }
+
+export const Architecture = memo(ArchitectureView);
