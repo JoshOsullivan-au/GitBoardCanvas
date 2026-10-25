@@ -5,6 +5,8 @@
 # Git exports GIT_DIR, GIT_INDEX_FILE and its other repo variables to hooks. The tests make their own temporary repos,
 # so clear them first, or those repos' git would write to this one.
 unset $(git rev-parse --local-env-vars)
+# Lines this commit adds must not name another project (see .githooks/private-terms).
+git diff --cached -U0 | grep '^+' | grep -v '^+++' | "$(dirname "$0")/private-terms" "this commit" || { echo "pre-commit: the commit was not made" >&2; exit 1; }
 echo "pre-commit: npm run check (typecheck, build, test)" >&2
 npm run --silent check >&2 || {
 	echo "pre-commit: npm run check failed; the commit was not made" >&2

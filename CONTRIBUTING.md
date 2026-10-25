@@ -15,6 +15,8 @@ npm run build
 
 Run the board from your clone with `npm run dev`, which builds and starts `serve`.
 
+Turn on the hooks once per clone with `git config core.hooksPath .githooks`. They build and test before each commit, and refuse a commit or push whose added lines or messages name another project you work on: list those names, one per line, in `.git/info/private-terms`, which stays on your machine and is never committed.
+
 ## Tests
 
 ```sh

@@ -1,0 +1,18 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Refuse text that names another project. Reads the text on stdin and the terms from
+# .git/info/private-terms (one fixed string per line, # for comments), which stays on each machine and is never
+# committed, so the names never reach the repository either. Terms match as whole words ("cat" does not match
+# "concatenate"), so list a name's joined forms too ("bluesky" beside "blue sky"). With no terms file it passes.
+# Usage: <text> | .githooks/private-terms <where>
+terms="$(git rev-parse --git-common-dir)/info/private-terms"
+[ -f "$terms" ] || exit 0
+list=$(mktemp)
+trap 'rm -f "$list"' EXIT
+grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' "$terms" > "$list"
+[ -s "$list" ] || exit 0
+hits=$(grep -i -n -w -F -f "$list")
+[ -z "$hits" ] && exit 0
+echo "private-terms: $1 names another project:" >&2
+echo "$hits" | head -20 >&2
+exit 1
