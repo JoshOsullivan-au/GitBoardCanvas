@@ -27,6 +27,7 @@ touches:
 - DropdownMenuLabel directly under DropdownMenuContent: Base UI throws error #31 (MenuGroupContext missing) and the whole page goes blank. Wrap the label and items in DropdownMenuGroup. AppSidebar's collapsed Docs menu still has this shape.
 
 ## Watch out
+- A menu inside a <dialog> must be `modal={false}`. A modal menu's backdrop appears under the pointer on press, the release lands on it, and the click event targets the <dialog> itself. Modal's backdrop-click handler then closes the popup, so the menu only shows while the button is held.
 - The in-app preview browser denies clipboard write (NotAllowedError) even on localhost, so only the fallback path can be tested there.
 - With the preview pane hidden, its coordinate clicks map to an 800x600 frame on a 1024x768 page and land on the dialog backdrop, which closes it. Dispatch pointer events at the element instead.
 - Unit tests don't render the menu, so a Base UI runtime error only shows in the browser. Open the menu once after changing it.

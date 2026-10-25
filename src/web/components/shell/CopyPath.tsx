@@ -55,8 +55,10 @@ export function CopyPath({ path }: { path: string }) {
 		const done = await copyText(text, box ?? document.body);
 		toast(done ? `Copied ${label.toLowerCase()}` : `Could not copy the ${label.toLowerCase()}`, { err: !done });
 	};
+	/* Not modal: a modal menu's backdrop opens under the pointer on press, so the release lands on it and the click
+	   reaches the dialog itself, which closes as on a backdrop click. The dialog is modal already. */
 	return (
-		<DropdownMenu>
+		<DropdownMenu modal={false}>
 			<DropdownMenuTrigger ref={anchor} className="copy-path" aria-label="Copy path" title="Copy path">
 				<Icon name="Copy" />
 			</DropdownMenuTrigger>

@@ -353,5 +353,7 @@ describe("copy path", () => {
 		for (const f of ["roadmap/Details.tsx", "components/shell/DocDialog.tsx"]) expect(read(f)).toMatch(/<\/button>\s*<CopyPath path=\{/);
 		expect(read("roadmap/Details.tsx").match(/<CopyPath /g)).toHaveLength(2);
 		expect(read("components/shell/CopyPath.tsx")).toContain("container={box}");
+		// A modal menu's backdrop takes the release of the opening click, and the dialog closes.
+		expect(read("components/shell/CopyPath.tsx")).toContain("<DropdownMenu modal={false}>");
 	});
 });
