@@ -76,6 +76,33 @@ describe("board server", () => {
 		expect(res.body).toContain(`const ROOT = ${JSON.stringify(path.resolve(dir))};`);
 	});
 
+	it("fills the page in one pass, so a repo folder named after a placeholder stays a name", async () => {
+		const root = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "gitboard-server-token-")), "__ROOT__");
+		fs.mkdirSync(path.join(root, "roadmap"), { recursive: true });
+		const srv = http.createServer();
+		await new Promise<void>((resolve) => srv.listen(0, "127.0.0.1", resolve));
+		const tokenPort = (srv.address() as { port: number }).port;
+		const board = createBoardServer({ root, config: { ...DEFAULT_CONFIG, github: false }, port: tokenPort, refreshMs: 0, log: () => {} });
+		srv.on("request", board.handle);
+		try {
+			const body = await new Promise<string>((resolve, reject) => {
+				http
+					.get({ host: "127.0.0.1", port: tokenPort, path: "/", headers: { host: `127.0.0.1:${tokenPort}` } }, (res) => {
+						let b = "";
+						res.on("data", (c) => (b += c));
+						res.on("end", () => resolve(b));
+					})
+					.on("error", reject);
+			});
+			expect(body).toContain('const REPO = "__ROOT__";');
+			expect(body).toContain(`const ROOT = ${JSON.stringify(root)};`);
+		} finally {
+			board.close();
+			srv.close();
+			fs.rmSync(path.dirname(root), { recursive: true, force: true });
+		}
+	});
+
 	it("serves the board", async () => {
 		const res = await request("/api/board");
 		expect(res.status).toBe(200);
