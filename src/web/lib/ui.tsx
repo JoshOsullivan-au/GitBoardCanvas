@@ -10,6 +10,8 @@ type Toast = ToastOptions & { id: number; text: string };
 type Page = { toast: (text: string, opts?: ToastOptions) => void; say: (text: string) => void };
 
 const PageContext = createContext<Page | null>(null);
+/** Moves the toasts into the open modal dialog: a Modal calls it on opening, so a toast already showing stays usable. */
+const RehostContext = createContext<(() => void) | null>(null);
 
 /** The open modal dialog, if any: the toasts go inside it, since a modal dialog leaves everything outside it inert. */
 const openModal = () => [...document.querySelectorAll<HTMLDialogElement>("dialog:modal")].at(-1) ?? null;
@@ -42,10 +44,11 @@ export function PageProvider({ children }: { children: ReactNode }) {
 		requestAnimationFrame(() => setSaid(text));
 	}, []);
 	const page = useRef<Page>({ toast, say }).current;
-	// When the dialog holding the toasts closes, they move back to the page.
+	const rehost = useCallback(() => setHost(openModal()), []);
+	// When the dialog holding the toasts closes, they move to the dialog still open under it, else back to the page.
 	useEffect(() => {
 		if (!host) return;
-		const off = () => setHost(null);
+		const off = () => setHost(openModal());
 		host.addEventListener("close", off);
 		return () => host.removeEventListener("close", off);
 	}, [host]);
@@ -60,7 +63,7 @@ export function PageProvider({ children }: { children: ReactNode }) {
 	});
 	return (
 		<PageContext.Provider value={page}>
-			{children}
+			<RehostContext.Provider value={rehost}>{children}</RehostContext.Provider>
 			{createPortal(
 				<div className="toasts" id="toasts" aria-live="polite" popover="manual" ref={stack}>
 					{toasts.map((t) => (
@@ -120,12 +123,14 @@ export function Modal({
 	children: ReactNode;
 }) {
 	const el = useRef<HTMLDialogElement>(null);
+	const rehost = useContext(RehostContext);
 	useImperativeHandle(ref, () => ({ close: () => el.current?.close(), el: el.current }), []);
 	useLayoutEffect(() => {
 		const d = el.current;
 		if (!d) return;
 		if (open && !d.open) {
 			d.showModal();
+			rehost?.();
 			d.querySelector<HTMLElement>("[data-autofocus]")?.focus();
 		} else if (!open && d.open) d.close();
 	}, [open]);

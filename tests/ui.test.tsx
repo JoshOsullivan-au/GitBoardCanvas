@@ -362,5 +362,8 @@ describe("copy path", () => {
 		expect(ui).toContain('popover="manual"');
 		expect(ui).toContain("host ?? document.body");
 		expect(ui).toContain('"dialog:modal"');
+		// A toast already showing moves in when a dialog opens, and to the dialog still open when its host closes.
+		expect(ui).toMatch(/d\.showModal\(\);\s*rehost\?\.\(\);/);
+		expect(ui).toContain("const off = () => setHost(openModal());");
 	});
 });
